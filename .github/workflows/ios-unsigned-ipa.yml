@@ -16,9 +16,9 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.3'   # pin to avoid channel resolution issues
+          flutter-version: '3.35.3'   # explicit -> avoids channel resolution issues
           channel: stable
-          architecture: x64
+          architecture: x64           # avoid arm64 lookup glitches
           cache: true
 
       - name: Flutter doctor / precache
@@ -30,7 +30,7 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      # Make sure CocoaPods is in a clean state
+      # Make sure CocoaPods is in a good state and uses the new Podfile
       - name: CocoaPods repo update
         working-directory: ios
         run: pod repo update
@@ -54,11 +54,11 @@ jobs:
           rm -rf Payload
           mkdir -p Payload
           cp -R "Runner.app" "Payload/Runner.app"
-          zip -r tracker-unsigned.ipa Payload
+          zip -r werewords-unsigned.ipa Payload
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: tracker-unsigned-ipa
-          path: build/ios/iphoneos/tracker-unsigned.ipa
+          path: build/ios/iphoneos/tracker-unsigned.ipa   # <- fixed path
           if-no-files-found: error
