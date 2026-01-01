@@ -35,6 +35,11 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
+    # Force minimum iOS to 13.0 for all pods to avoid toolchains injecting iOS 10.0
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+    end
+
     # Fix: remove bad -G flag in BoringSSL-GRPC on some toolchains
     if target.name == 'BoringSSL-GRPC'
       target.source_build_phase.files.each do |file|
