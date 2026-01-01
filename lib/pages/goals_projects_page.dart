@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -38,7 +38,10 @@ class GoalsProjectsPage extends StatelessWidget {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: Colors.white70),
+              ?.copyWith(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
+                      : Colors.black.withOpacity(0.7)),
         ),
         const SizedBox(height: 20),
         ...projects.map(
@@ -237,6 +240,7 @@ class _GoalProgressRing extends StatelessWidget {
               color: color,
               strokeWidth: strokeWidth,
               ringSize: size,
+              isDark: Theme.of(context).brightness == Brightness.dark,
             ),
           ),
           Column(
@@ -252,7 +256,9 @@ class _GoalProgressRing extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontSize: percentFont,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
                         ),
                   ),
 
@@ -263,7 +269,9 @@ class _GoalProgressRing extends StatelessWidget {
                         .textTheme
                         .titleMedium
                         ?.copyWith(
-                            color: Colors.white60,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white60
+                                : Colors.black54,
                             fontWeight: FontWeight.w500,
                             fontSize: percentSymbolFont),
                   ),
@@ -277,7 +285,9 @@ class _GoalProgressRing extends StatelessWidget {
                     .textTheme
                     .labelLarge
                     ?.copyWith(
-                        color: Colors.white60,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white60
+                            : Colors.black54,
                         fontWeight: FontWeight.w500,
                         fontSize: remainingFont),
               ),
@@ -292,7 +302,9 @@ class _GoalProgressRing extends StatelessWidget {
                   .textTheme
                   .labelMedium
                   ?.copyWith(
-                      color: Colors.white70,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Colors.black87,
                       fontWeight: FontWeight.w600,
                       fontSize: labelFont),
             ),
@@ -309,16 +321,19 @@ class _RingPainter extends CustomPainter {
     required this.color,
     required this.strokeWidth,
     required this.ringSize,
+    required this.isDark,
   });
 
   final double progress;
   final Color color;
   final double strokeWidth;
   final double ringSize;
+  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
     final p = progress.clamp(0.0, 1.0);
+    const threshold = 0.8;
     final gapAngle = (ringSize < 170 ? 0.7 : 0.5) * math.pi; // larger cut on phones
     final usableSweep = 2 * math.pi - gapAngle;
 
@@ -337,30 +352,50 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white10;
+      ..color = isDark ? Colors.white.withOpacity(0.04) : Colors.grey.withOpacity(0.2);
     canvas.drawArc(rect, startAngle, usableSweep, false, trackPaint);
 
     if (p <= 0) return;
 
+    final headFrac = ((usableSweep * threshold) / (2 * math.pi)).clamp(0.0, 1.0);
+
     final bodyShader = SweepGradient(
       startAngle: startAngle,
-      endAngle: startAngle + (sweep == 0 ? 0.001 : sweep),
+      endAngle: startAngle + 2 * math.pi, // full definition
       tileMode: TileMode.clamp,
       colors: [
-        color.withOpacity(0.18),
         color.withOpacity(0.35),
+        color.withOpacity(0.40),
         color.withOpacity(0.65),
         color.withOpacity(1.0),
+        color.withOpacity(1.0),
       ],
-      stops: const [0.0, 0.35, 0.7, 1.0],
+      stops: [
+        0.0,
+        (headFrac * 0.55).clamp(0.0, 1.0),
+        (headFrac * 0.85).clamp(0.0, 1.0),
+        headFrac,
+        1.0,
+      ],
     ).createShader(rect);
+
 
     final bodyPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..shader = bodyShader;
-    canvas.drawArc(rect, startAngle, sweep, false, bodyPaint);
+    final gradSweep = usableSweep * math.min(p, threshold);
+    final bodyGlowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..shader = bodyShader
+        ..color = Colors.white.withOpacity(1.0) // no extra tint; shader stays
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 0.45);
+
+    canvas.drawArc(rect, startAngle, gradSweep, false, bodyGlowPaint);
+    canvas.drawArc(rect, startAngle, gradSweep, false, bodyPaint);
 
     // Head glow + dot
     final center = Offset(size.width / 2, size.height / 2);
@@ -370,12 +405,28 @@ class _RingPainter extends CustomPainter {
         center + Offset(math.cos(headAngle), math.sin(headAngle)) * radius;
 
     final headGlowPaint = Paint()
-      ..color = color.withOpacity(0.45)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 1.6);
-    canvas.drawCircle(headPos, strokeWidth * 0.9, headGlowPaint);
+      ..color = color.withOpacity(0.65)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, strokeWidth * 1.2);
+    canvas.drawCircle(headPos, strokeWidth * 1.10, headGlowPaint); // a bit larger
 
-    final dotPaint = Paint()..color = color;
-    canvas.drawCircle(headPos, strokeWidth * 0.55, dotPaint);
+
+    final dotPaint = Paint()..color = color.withOpacity(0.95);
+    canvas.drawCircle(headPos, strokeWidth * 0.7, dotPaint); // bigger head
+
+
+    if (p > threshold) {
+  final extraSweep = usableSweep * (p - threshold);
+
+  final solidStart = startAngle + sweep - extraSweep;
+
+  final solidPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = strokeWidth
+    ..strokeCap = StrokeCap.butt // straight start
+    ..color = color.withOpacity(1.0);
+
+  canvas.drawArc(rect, solidStart, extraSweep, false, solidPaint);
+}
   }
 
   @override
@@ -383,7 +434,8 @@ class _RingPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.color != color ||
         oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.ringSize != ringSize;
+        oldDelegate.ringSize != ringSize ||
+        oldDelegate.isDark != isDark;
   }
 }
 
@@ -450,9 +502,11 @@ class _WavyProgressBarState extends State<_WavyProgressBar> with SingleTickerPro
               Container(
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.04)
+                      : Colors.white),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: Colors.transparent),
                 ),
               ),
               ClipRRect(
@@ -482,7 +536,11 @@ class _WavyProgressBarState extends State<_WavyProgressBar> with SingleTickerPro
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -490,7 +548,10 @@ class _WavyProgressBarState extends State<_WavyProgressBar> with SingleTickerPro
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
-                                  ?.copyWith(color: Colors.white70),
+                                  ?.copyWith(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white70
+                                          : Colors.black54),
                             ),
                           ],
                         ),
@@ -500,7 +561,11 @@ class _WavyProgressBarState extends State<_WavyProgressBar> with SingleTickerPro
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
+                            ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
                       ),
                     ],
                   ),

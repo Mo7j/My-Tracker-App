@@ -36,7 +36,10 @@ class HabitsPage extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium
-                      ?.copyWith(color: Colors.white70),
+                      ?.copyWith(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white70
+                              : Colors.black.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -64,14 +67,16 @@ class HabitsPage extends StatelessWidget {
     if (onEditHabit == null && onDeleteHabit == null) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF121620),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).dialogBackgroundColor
+          : Colors.white,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit, color: Colors.white),
-              title: const Text('Edit habit', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
+              title: Text('Edit habit', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(ctx);
                 onEditHabit?.call(habit);
@@ -79,7 +84,15 @@ class HabitsPage extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.redAccent),
-              title: const Text('Delete habit', style: TextStyle(color: Colors.redAccent)),
+              title: Text(
+                'Delete habit',
+                style: TextStyle(
+                  color: Theme.of(ctx).brightness == Brightness.dark
+                      ? Colors.redAccent
+                      : Colors.black,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 onDeleteHabit?.call(habit);
@@ -99,15 +112,20 @@ class _HabitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF171C25),
+        color: isDark ? const Color(0xFF171C25) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+            color: isDark
+                ? Colors.white12
+                : theme.colorScheme.onSurface.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),
@@ -144,7 +162,10 @@ class _HabitCard extends StatelessWidget {
                       style: Theme.of(context)
                           .textTheme
                           .labelMedium
-                          ?.copyWith(color: Colors.white70),
+                          ?.copyWith(
+                              color: isDark
+                                  ? Colors.white70
+                                  : theme.colorScheme.onSurface.withOpacity(0.7)),
                     ),
                   ],
                 ),
@@ -233,7 +254,9 @@ class _SnakeHeatmap extends StatelessWidget {
                         margin: EdgeInsets.only(bottom: row == rows - 1 ? 0 : spacing),
                         decoration: BoxDecoration(
                           color: count == 0
-                              ? const Color(0xFF1E2535)
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF1E2535)
+                                  : Colors.grey.shade200)
                               : habit.color.withOpacity(opacity),
                           borderRadius: BorderRadius.circular(2),
                         ),
@@ -287,13 +310,15 @@ class _StreakBadge extends StatelessWidget {
         '$streak 🔥',
         style: base?.copyWith(
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
               fontSize: (base.fontSize ?? 14) + 4,
             ) ??
             const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: Colors.black,
             ),
       ),
     );

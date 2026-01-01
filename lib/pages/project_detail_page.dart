@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -20,7 +20,8 @@ class ProjectDetailPage extends StatefulWidget {
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
 }
 
-class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTickerProviderStateMixin {
+class _ProjectDetailPageState extends State<ProjectDetailPage>
+    with SingleTickerProviderStateMixin {
   static const _colorOptions = [
     Color(0xFF7EE6A1),
     Color(0xFFB784FF),
@@ -44,6 +45,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
     Color(0xFF80CBC4),
     Color(0xFFD4E157),
   ];
+
   late Project _current;
   late final Ticker _ticker;
   double _phase = 0;
@@ -99,7 +101,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                child: const Icon(Icons.arrow_back_ios_new, size: 26, color: Colors.white),
+                child: const Icon(Icons.arrow_back_ios_new,
+                    size: 26, color: Colors.white),
               ),
             ),
           ),
@@ -166,10 +169,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Text(
                       'No tasks yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white70),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7)),
                     ),
                   )
                 else
@@ -211,7 +215,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                               alignment: Alignment.centerRight,
                             ),
                             onUpdate: (details) {
-                              final dir = details.direction == DismissDirection.none
+                              final dir = details.direction ==
+                                      DismissDirection.none
                                   ? null
                                   : details.direction;
                               if (dir != swipeDir) setInner(() => swipeDir = dir);
@@ -219,19 +224,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                             confirmDismiss: (direction) async {
                               if (direction == DismissDirection.startToEnd) {
                                 if (task.id != null && project.id != null) {
-                                  await widget.firestore
-                                      .deleteProjectTask(project.id!, task.id!);
+                                  await widget.firestore.deleteProjectTask(
+                                      project.id!, task.id!);
                                   _changed = true;
                                 }
                                 return true;
-                              } else if (direction == DismissDirection.endToStart) {
+                              } else if (direction ==
+                                  DismissDirection.endToStart) {
                                 await _editProjectTask(project.id!, task);
                                 return false;
                               }
                               return false;
                             },
                             child: Card(
-                              color: const Color(0xFF181C24),
+                              color: Theme.of(context).cardColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: radius,
                               ),
@@ -243,11 +249,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                                   task.isDone
                                       ? Icons.check_circle
                                       : Icons.radio_button_unchecked,
-                                  color:
-                                      task.isDone ? const Color(0xFF61E294) : Colors.white70,
+                                  color: task.isDone
+                                      ? const Color(0xFF61E294)
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.6),
                                 ),
-                                title: Text(task.title),
-                                subtitle: Text(task.subtitle),
+                                title: Text(task.title,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium),
+                                subtitle: Text(
+                                  task.subtitle,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.7)),
+                                ),
                                 onTap: () async {
                                   await widget.firestore.updateProjectTaskDone(
                                     project.id!,
@@ -274,6 +297,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
     );
   }
 
+  // ---------- Dialogs / Sheets ----------
+
   Future<void> _showAddTask() async {
     final project = _current;
     final task = await showDialog<Task>(
@@ -281,36 +306,36 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
       builder: (context) {
         final titleCtrl = TextEditingController();
         final subtitleCtrl = TextEditingController();
-        final primaryStyle = ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF3A7AFE),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        );
-        final cancelStyle = TextButton.styleFrom(
-          foregroundColor: Colors.white70,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        );
+
         return AlertDialog(
-          backgroundColor: const Color(0xFF121620),
+          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           title: const Text('Add project task'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
-              TextField(
-                controller: subtitleCtrl,
-                decoration: const InputDecoration(labelText: 'Details'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                TextField(
+                  controller: subtitleCtrl,
+                  decoration: const InputDecoration(labelText: 'Details'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              style: cancelStyle,
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -330,13 +355,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                   ),
                 );
               },
-              style: primaryStyle,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3A7AFE),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               child: const Text('Add'),
             ),
           ],
         );
       },
     );
+
     if (task != null) {
       await widget.firestore.addProjectTask(project.id!, task);
     }
@@ -345,102 +378,135 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
   Future<void> _editProject(Project project) async {
     final nameCtrl = TextEditingController(text: project.name);
     final descCtrl = TextEditingController(text: project.description);
-    Color selected = project.color;
+
     final updated = await showModalBottomSheet<Project>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121620),
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         final viewInsets = MediaQuery.of(ctx).viewInsets.bottom;
-        void setLocal(Color c) {
-          selected = c;
-          setState(() {});
-        }
-        return Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, viewInsets + 12),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text('Edit project',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Color',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .labelLarge
-                    ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _colorOptions
-                    .map(
-                      (c) => GestureDetector(
-                        onTap: () => setLocal(c),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: c,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: selected == c ? Colors.white : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 14),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        Color selected = project.color;
+
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            final handleColor =
+                Theme.of(ctx).brightness == Brightness.dark
+                    ? Colors.white24
+                    : Colors.black26;
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(16, 10, 16, viewInsets + 12),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
                 ),
-                onPressed: () {
-                  Navigator.pop(
-                    ctx,
-                    Project(
-                      id: project.id,
-                      name: nameCtrl.text.trim().isEmpty ? project.name : nameCtrl.text.trim(),
-                      description:
-                          descCtrl.text.trim().isEmpty ? project.description : descCtrl.text.trim(),
-                      progress: project.progress,
-                      color: selected,
-                      weeklyBurndown: project.weeklyBurndown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle (visible in light & dark)
+                    Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                  );
-                },
-                child: const Text('Save changes'),
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          Text(
+                            'Edit project',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: nameCtrl,
+                            decoration:
+                                const InputDecoration(labelText: 'Name'),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: descCtrl,
+                            decoration: const InputDecoration(
+                                labelText: 'Description'),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Color',
+                            style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                                color: Theme.of(ctx)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.7),
+                                fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Color picker (NO animation, cutout border)
+                          _ColorPicker(
+                            colors: _colorOptions,
+                            selected: selected,
+                            backgroundColor:
+                                Theme.of(ctx).dialogBackgroundColor,
+                            onPick: (c) => setLocalState(() => selected = c),
+                          ),
+
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
+
+                    // Bottom button always at bottom (keyboard-safe)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A7AFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(
+                            ctx,
+                            Project(
+                              id: project.id,
+                              name: nameCtrl.text.trim().isEmpty
+                                  ? project.name
+                                  : nameCtrl.text.trim(),
+                              description: descCtrl.text.trim().isEmpty
+                                  ? project.description
+                                  : descCtrl.text.trim(),
+                              progress: project.progress,
+                              color: selected,
+                              weeklyBurndown: project.weeklyBurndown,
+                            ),
+                          );
+                        },
+                        child: const Text('Save changes'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
+
     if (updated != null) {
       if (mounted) {
         setState(() {
@@ -456,26 +522,55 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
     if (project.id == null) return;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: const Color(0xFF121620),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.redAccent),
-              title: const Text('Delete project', style: TextStyle(color: Colors.redAccent)),
-              subtitle: Text('Remove "${project.name}" and its tasks?'),
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-            ListTile(
-              leading: const Icon(Icons.close, color: Colors.white70),
-              title: const Text('Cancel', style: TextStyle(color: Colors.white)),
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-          ],
-        ),
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (ctx) {
+        final handleColor =
+            Theme.of(ctx).brightness == Brightness.dark
+                ? Colors.white24
+                : Colors.black26;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: handleColor,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.redAccent),
+                title: const Text('Delete project',
+                    style: TextStyle(color: Colors.redAccent)),
+                subtitle: Text('Remove "${project.name}" and its tasks?'),
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+              ListTile(
+                leading: Icon(Icons.close,
+                    color: Theme.of(ctx)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7)),
+                title: Text('Cancel',
+                    style: TextStyle(
+                        color: Theme.of(ctx).colorScheme.onSurface)),
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+        );
+      },
     );
+
     if (confirmed == true) {
       await widget.firestore.deleteProject(project.id!);
       _changed = true;
@@ -486,29 +581,34 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
   Future<void> _editProjectTask(String projectId, Task task) async {
     final titleCtrl = TextEditingController(text: task.title);
     final subtitleCtrl = TextEditingController(text: task.subtitle);
+
     final updated = await showDialog<Task>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121620),
+        backgroundColor: Theme.of(ctx).dialogBackgroundColor,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: const Text('Edit task'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Title'),
-            ),
-            TextField(
-              controller: subtitleCtrl,
-              decoration: const InputDecoration(labelText: 'Details'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              TextField(
+                controller: subtitleCtrl,
+                decoration: const InputDecoration(labelText: 'Details'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.white70,
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             child: const Text('Cancel'),
@@ -535,21 +635,65 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
                 ),
               );
             },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3A7AFE),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3A7AFE),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+
     if (updated != null) {
       await widget.firestore.updateProjectTask(projectId, updated);
       _changed = true;
     }
+  }
+}
+
+// ---------- Shared small widgets ----------
+
+class _ColorPicker extends StatelessWidget {
+  const _ColorPicker({
+    required this.colors,
+    required this.selected,
+    required this.backgroundColor,
+    required this.onPick,
+  });
+
+  final List<Color> colors;
+  final Color selected;
+  final Color backgroundColor;
+  final ValueChanged<Color> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: colors.map((c) {
+        final isSelected = c.value == selected.value;
+        return GestureDetector(
+          onTap: () => onPick(c),
+          child: Container(
+            padding: isSelected ? const EdgeInsets.all(3) : EdgeInsets.zero,
+            decoration: BoxDecoration(
+              color: isSelected ? backgroundColor : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
 
@@ -631,7 +775,8 @@ class _WavyHeaderBar extends StatelessWidget {
               ),
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -645,7 +790,9 @@ class _WavyHeaderBar extends StatelessWidget {
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
+                                  ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -655,7 +802,11 @@ class _WavyHeaderBar extends StatelessWidget {
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
-                                  ?.copyWith(color: Colors.white70),
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.7)),
                             ),
                           ],
                         ),
@@ -665,7 +816,9 @@ class _WavyHeaderBar extends StatelessWidget {
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
+                            ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white),
                       ),
                     ],
                   ),
@@ -711,10 +864,10 @@ class _WavePainter extends CustomPainter {
     path.lineTo(baseX, size.height);
     path.lineTo(0, size.height);
     path.close();
-    canvas.clipRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(16)));
+    canvas.clipRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(16)));
     canvas.drawPath(path, paint);
 
-    // Lighter overlay wave
     final topPath = Path();
     const topWaveWidth = 32.0;
     const topAmp = 6.0;
@@ -737,6 +890,8 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavePainter oldDelegate) {
-    return oldDelegate.pct != pct || oldDelegate.color != color || oldDelegate.phase != phase;
+    return oldDelegate.pct != pct ||
+        oldDelegate.color != color ||
+        oldDelegate.phase != phase;
   }
 }

@@ -1,0 +1,64 @@
+name: iOS unsigned IPA (Flutter)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.3'   # pin to avoid channel resolution issues
+          channel: stable
+          architecture: x64
+          cache: true
+
+      - name: Flutter doctor / precache
+        run: |
+          flutter --version
+          flutter doctor -v
+          flutter precache --ios
+
+      - name: Pub get
+        run: flutter pub get
+
+      # Make sure CocoaPods is in a clean state
+      - name: CocoaPods repo update
+        working-directory: ios
+        run: pod repo update
+
+      - name: Clean CocoaPods (safe to run; ignores errors)
+        working-directory: ios
+        run: |
+          pod deintegrate || true
+          rm -rf Pods Podfile.lock
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create unsigned IPA
+        working-directory: build/ios/iphoneos
+        run: |
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "Runner.app" "Payload/Runner.app"
+          zip -r tracker-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracker-unsigned-ipa
+          path: build/ios/iphoneos/tracker-unsigned.ipa
+          if-no-files-found: error

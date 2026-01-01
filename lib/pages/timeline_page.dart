@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -10,6 +10,8 @@ class TimelinePage extends StatefulWidget {
     super.key,
     required this.schedule,
     required this.habits,
+    required this.isDark,
+    required this.onToggleTheme,
     this.onAddTask,
     this.onToggleTaskDone,
     this.onToggleHabit,
@@ -20,6 +22,8 @@ class TimelinePage extends StatefulWidget {
 
   final List<DaySchedule> schedule;
   final List<Habit> habits;
+  final bool isDark;
+  final VoidCallback onToggleTheme;
   final VoidCallback? onAddTask;
   final Future<void> Function(String dayId, String taskId, bool isDone)?
       onToggleTaskDone;
@@ -34,9 +38,7 @@ class TimelinePage extends StatefulWidget {
 
 class _TimelinePageState extends State<TimelinePage> {
   String view = 'Today';
-  // Fake "today" for preview; TODO: set back to DateTime.now()
-  final DateTime _todayOverride = DateTime(2026, 8, 8);
-  DateTime selectedDate = DateTime(2026, 8, 8);
+  DateTime selectedDate = DateTime.now();
   final List<GlobalKey> _monthKeys = List<GlobalKey>.generate(12, (_) => GlobalKey());
   bool _jumpedToMonth = false;
   final ScrollController _scrollController = ScrollController();
@@ -67,8 +69,9 @@ class _TimelinePageState extends State<TimelinePage> {
   @override
   Widget build(BuildContext context) {
     final dayTasks = _tasksForDate(selectedDate);
-    final isToday = isSameDay(selectedDate, DateTime.now());
-    final nowMinutes = TimeOfDay.now().hour * 60 + TimeOfDay.now().minute;
+    final now = DateTime.now();
+    final isToday = isSameDay(selectedDate, now);
+    final nowMinutes = TimeOfDay.fromDateTime(now).hour * 60 + TimeOfDay.fromDateTime(now).minute;
 
     final entries = <_TimelineEntry>[];
     for (final task in dayTasks) {
@@ -101,6 +104,8 @@ class _TimelinePageState extends State<TimelinePage> {
                 selectedDate: selectedDate,
                 subtitle: _headerSubtitle(),
                 view: view,
+                isDark: widget.isDark,
+                onToggleTheme: widget.onToggleTheme,
                 onViewChanged: (value) {
                   setState(() {
                     view = value;
@@ -169,7 +174,9 @@ class _TimelinePageState extends State<TimelinePage> {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: Colors.white12,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white12
+                                : Colors.black38,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -177,7 +184,9 @@ class _TimelinePageState extends State<TimelinePage> {
                         Expanded(
                           child: Container(
                             height: 2,
-                            color: Colors.white12,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white12
+                                : Colors.black38,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -187,7 +196,11 @@ class _TimelinePageState extends State<TimelinePage> {
                               .textTheme
                               .labelMedium
                               ?.copyWith(
-                                  color: Colors.white70, fontWeight: FontWeight.w700),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
+                                  fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
@@ -273,7 +286,7 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   List<Widget> _buildMonthView(BuildContext context) {
-    final fakeToday = _todayOverride; // TODO: set back to DateTime.now()
+    final fakeToday = DateTime.now();
     final months = List.generate(12, (i) => DateTime(fakeToday.year, i + 1, 1));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_jumpedToMonth && view == 'Month') {
@@ -344,12 +357,12 @@ class _TimelinePageState extends State<TimelinePage> {
                 }),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF151924),
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSameDay(selectedDate, month)
-                          ? const Color(0xFF3A7AFE)
-                          : Colors.white12,
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).dividerColor.withOpacity(0.3),
                     ),
                   ),
                   padding: const EdgeInsets.all(10),
@@ -360,6 +373,9 @@ class _TimelinePageState extends State<TimelinePage> {
                         DateFormat.MMM().format(month),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? null
+                                  : Colors.black,
                             ),
                       ),
                       const SizedBox(height: 6),
@@ -368,7 +384,10 @@ class _TimelinePageState extends State<TimelinePage> {
                         style: Theme.of(context)
                             .textTheme
                             .labelMedium
-                            ?.copyWith(color: Colors.white70),
+                            ?.copyWith(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                                    : Colors.black),
                       ),
                       const SizedBox(height: 4),
                       Wrap(
@@ -487,9 +506,9 @@ class _MonthGrid extends StatelessWidget {
                 final isToday = date.year == effectiveToday.year &&
                     date.month == effectiveToday.month &&
                     date.day == effectiveToday.day;
-                final isPast = date.isBefore(effectiveToday);
-                final color = _colorForCount(remaining, maxCount);
-                final textOpacity = isPast ? 0.65 : 1.0;
+                final isPast = date.isBefore(effectiveToday) && !isToday;
+                final color = _colorForCount(remaining, maxCount, Theme.of(context));
+                final textOpacity = isPast ? 0.25 : 1.0;
                 return GestureDetector(
                   onTap: () => onSelect(date),
                   child: Container(
@@ -497,7 +516,7 @@ class _MonthGrid extends StatelessWidget {
                     height: cellSize,
                     decoration: BoxDecoration(
                       color: isPast
-                          ? const Color(0xFF0F1218)
+                          ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.8)
                           : color,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -512,7 +531,9 @@ class _MonthGrid extends StatelessWidget {
                           '${date.day}',
                           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white.withOpacity(textOpacity),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(textOpacity)
+                                    : Colors.black.withOpacity(textOpacity),
                               ),
                         ),
                         const SizedBox(height: 2),
@@ -526,7 +547,9 @@ class _MonthGrid extends StatelessWidget {
                                   .textTheme
                                   .labelSmall
                                   ?.copyWith(
-                                    color: Colors.white70.withOpacity(textOpacity),
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white70.withOpacity(textOpacity)
+                                        : Colors.black.withOpacity(textOpacity * 0.8),
                                   ),
                             ),
                           ],
@@ -543,9 +566,9 @@ class _MonthGrid extends StatelessWidget {
     );
   }
 
-  Color _colorForCount(int count, int max) {
-    if (max == 0) return const Color(0xFF151924);
-    if (count == 0) return const Color(0xFF151924);
+  Color _colorForCount(int count, int max, ThemeData theme) {
+    if (max == 0) return theme.colorScheme.surfaceVariant;
+    if (count == 0) return theme.colorScheme.surfaceVariant;
     final ratio = (count / max).clamp(0.0, 1.0);
     final base = const Color(0xFFE53935);
     final opacity = 0.12 + 0.6 * ratio;
@@ -600,7 +623,7 @@ class _HeaderContent extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: Colors.white70),
+                      ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -628,12 +651,16 @@ class _HeaderCompactRow extends StatelessWidget {
     required this.subtitle,
     required this.view,
     required this.onViewChanged,
+    required this.isDark,
+    required this.onToggleTheme,
   });
 
   final DateTime selectedDate;
   final String subtitle;
   final String view;
   final ValueChanged<String> onViewChanged;
+  final bool isDark;
+  final VoidCallback onToggleTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -643,6 +670,12 @@ class _HeaderCompactRow extends StatelessWidget {
           options: const ['Today', 'Week', 'Month'],
           value: view,
           onChanged: onViewChanged,
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: onToggleTheme,
+          tooltip: 'Toggle theme',
+          icon: Text(isDark ? '☀️' : '🌙', style: const TextStyle(fontSize: 23)),
         ),
       ],
     );
@@ -694,10 +727,14 @@ class _ViewToggle extends StatelessWidget {
             (option) => Padding(
               padding: const EdgeInsets.only(right: 10),
               child: ChoiceChip(
-                backgroundColor: const Color(0xFF1A1F2B),
+                backgroundColor: const Color(0xFF3A7AFE).withOpacity(0.12),
                 selectedColor: const Color(0xFF3A7AFE),
+                side: const BorderSide(color: Colors.transparent),
+                checkmarkColor: Colors.white,
                 labelStyle: TextStyle(
-                  color: option == value ? Colors.white : Colors.white70,
+                  color: option == value
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   fontWeight: FontWeight.w600,
                 ),
                 label: Text(option),
@@ -741,9 +778,10 @@ class _TimelineTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: Colors.white70,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
           fontWeight: FontWeight.w600,
         );
+    final lineColor = Theme.of(context).colorScheme.onSurface.withOpacity(0.18);
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -764,7 +802,7 @@ class _TimelineTile extends StatelessWidget {
               SizedBox(
                 height: 12,
                 child: !isFirst
-                    ? Container(width: 2, color: Colors.white12)
+                    ? Container(width: 2, color: lineColor)
                     : const SizedBox.shrink(),
               ),
               Container(
@@ -786,7 +824,7 @@ class _TimelineTile extends StatelessWidget {
                   ? Container(
                       width: 2,
                       height: 70,
-                      color: Colors.white12,
+                      color: lineColor,
                     )
                   : const SizedBox.shrink(),
             ],
@@ -838,15 +876,17 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final checkColor = _checkColor(theme);
     final card = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.all(isCompact ? 10 : 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF181C24),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.35 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, 12),
           ),
@@ -860,11 +900,17 @@ class _TaskCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(isCompact ? 10 : 12),
                 decoration: BoxDecoration(
-                  color: task.color.withOpacity(0.12),
+                  color: theme.brightness == Brightness.dark
+                      ? task.color.withOpacity(0.12)
+                      : task.color.withOpacity(0.2),
                   shape: BoxShape.rectangle,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(task.icon, color: Colors.white, size: isCompact ? 18 : 22),
+                child: Icon(task.icon,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.colorScheme.onSurface
+                        : Colors.black87,
+                    size: isCompact ? 18 : 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -872,18 +918,16 @@ class _TaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      task.isImportant ? '${task.title}   🚩' : task.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      task.isImportant ? '${task.title}   ðŸš©' : task.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       task.subtitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white70),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
                     ),
                   ],
                 ),
@@ -895,14 +939,14 @@ class _TaskCard extends StatelessWidget {
                       GestureDetector(
                         onTap: _onTapCheck,
                         child: Container(
-                          padding: EdgeInsets.all(isCompact ? 6 : 8),
+                          padding: EdgeInsets.all(isCompact ? 4 : 6),
                           decoration: BoxDecoration(
-                            color: _checkColor().withOpacity(0.15),
+                            color: checkColor.withOpacity(0.06),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             _checkIcon(),
-                            color: _checkColor(),
+                            color: checkColor,
                             size: isCompact ? 18 : 20,
                           ),
                         ),
@@ -913,7 +957,12 @@ class _TaskCard extends StatelessWidget {
                         style: Theme.of(context)
                         .textTheme
                         .labelMedium
-                        ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w600),
+                        ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7),
+                            fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -974,14 +1023,14 @@ class _TaskCard extends StatelessWidget {
     if (task.isHabit || dayId == null || task.id == null) return;
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF121620),
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit, color: Colors.white),
-              title: const Text('Edit task', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
+              title: Text('Edit task', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
               onTap: () => Navigator.pop(ctx, 'edit'),
             ),
             ListTile(
@@ -1004,8 +1053,10 @@ class _TaskCard extends StatelessWidget {
     return task.isDone ? Icons.check_circle : Icons.radio_button_unchecked;
   }
 
-  Color _checkColor() {
-    return task.isDone ? const Color(0xFF61E294) : Colors.white70;
+  Color _checkColor(ThemeData theme) {
+    return task.isDone
+        ? const Color(0xFF61E294)
+        : theme.colorScheme.onSurface.withOpacity(0.6);
   }
 }
 
@@ -1027,13 +1078,17 @@ class _HabitCountBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6)
+            : Colors.black.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         '$count/$maxPerDay',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Colors.white,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.black87,
               fontWeight: FontWeight.w700,
             ),
       ),
@@ -1091,8 +1146,8 @@ class _WeekDayTile extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: ExpansionTile(
-        backgroundColor: const Color(0xFF181C24),
-        collapsedBackgroundColor: const Color(0xFF181C24),
+        backgroundColor: Theme.of(context).cardColor,
+        collapsedBackgroundColor: Theme.of(context).cardColor,
         tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
         onExpansionChanged: (expanded) {
@@ -1140,7 +1195,7 @@ class _WeekDayTile extends StatelessWidget {
                     style: Theme.of(context)
                         .textTheme
                         .labelMedium
-                        ?.copyWith(color: Colors.white70),
+                        ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                   ),
                 const SizedBox(width: 10),
                 Text(
@@ -1148,7 +1203,7 @@ class _WeekDayTile extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .labelMedium
-                      ?.copyWith(color: Colors.white70),
+                      ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -1256,9 +1311,9 @@ class _HabitChipState extends State<_HabitChip> with SingleTickerProviderStateMi
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: widget.habit.color.withOpacity(0.4),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: widget.habit.color.withOpacity(0.5), width: 1.2),
+          border: Border.all(color: widget.habit.color.withOpacity(0.50), width: 1.2),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -1268,10 +1323,12 @@ class _HabitChipState extends State<_HabitChip> with SingleTickerProviderStateMi
               child: AnimatedBuilder(
                 animation: _controller,
                 builder: (context, _) {
+                  final waveColor =
+                      widget.ratio >= 1 ? widget.habit.color : widget.habit.color.withOpacity(1.0);
                   return SizedBox.expand(
                     child: CustomPaint(
                       painter: _WavePainter(
-                        color: widget.habit.color.withOpacity(0.65),
+                        color: waveColor,
                         ratio: widget.ratio,
                         phase: _controller.value * 2 * math.pi,
                       ),
@@ -1384,6 +1441,8 @@ class _ShakeState extends State<_Shake> with TickerProviderStateMixin {
     );
   }
 }
+
+
 
 
 

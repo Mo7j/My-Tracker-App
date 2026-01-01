@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
@@ -78,7 +78,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                child: const Icon(Icons.arrow_back_ios_new, size: 26, color: Colors.white),
+                child: const Icon(Icons.arrow_back_ios_new,
+                    size: 26, color: Colors.white),
               ),
             ),
           ),
@@ -128,12 +129,19 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
             final tasks = snapshot.data ?? [];
             final done = tasks.where((t) => t.isDone).length;
             final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
+
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 if (goal.stat.isNotEmpty)
-                  Text(goal.stat,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
+                  Text(
+                    goal.stat,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7)),
+                  ),
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -141,7 +149,10 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                     minHeight: 10,
                     value: progress,
                     valueColor: AlwaysStoppedAnimation(goal.color),
-                    backgroundColor: Colors.white10,
+                    backgroundColor: Theme.of(context).brightness ==
+                            Brightness.dark
+                        ? Colors.white10
+                        : Colors.black12,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -150,10 +161,11 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Text(
                       'No tasks yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white70),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7)),
                     ),
                   )
                 else
@@ -195,7 +207,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                               alignment: Alignment.centerRight,
                             ),
                             onUpdate: (details) {
-                              final dir = details.direction == DismissDirection.none
+                              final dir = details.direction ==
+                                      DismissDirection.none
                                   ? null
                                   : details.direction;
                               if (dir != swipeDir) setInner(() => swipeDir = dir);
@@ -203,18 +216,20 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                             confirmDismiss: (direction) async {
                               if (direction == DismissDirection.startToEnd) {
                                 if (task.id != null && goal.id != null) {
-                                  await widget.firestore.deleteGoalTask(goal.id!, task.id!);
+                                  await widget.firestore
+                                      .deleteGoalTask(goal.id!, task.id!);
                                   _changed = true;
                                 }
                                 return true;
-                              } else if (direction == DismissDirection.endToStart) {
+                              } else if (direction ==
+                                  DismissDirection.endToStart) {
                                 await _editGoalTask(goal.id!, task);
                                 return false;
                               }
                               return false;
                             },
                             child: Card(
-                              color: const Color(0xFF181C24),
+                              color: Theme.of(context).cardColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: radius,
                               ),
@@ -226,8 +241,12 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                                   task.isDone
                                       ? Icons.check_circle
                                       : Icons.radio_button_unchecked,
-                                  color:
-                                      task.isDone ? const Color(0xFF61E294) : Colors.white70,
+                                  color: task.isDone
+                                      ? const Color(0xFF61E294)
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.7),
                                 ),
                                 title: Text(task.title),
                                 subtitle: Text(task.subtitle),
@@ -264,28 +283,35 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
       builder: (context) {
         final titleCtrl = TextEditingController();
         final subtitleCtrl = TextEditingController();
+
         return AlertDialog(
-          backgroundColor: const Color(0xFF121620),
+          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           title: const Text('Add goal task'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
-              TextField(
-                controller: subtitleCtrl,
-                decoration: const InputDecoration(labelText: 'Details'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                TextField(
+                  controller: subtitleCtrl,
+                  decoration: const InputDecoration(labelText: 'Details'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white70,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                foregroundColor:
+                    Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               child: const Text('Cancel'),
             ),
@@ -309,8 +335,10 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3A7AFE),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Add'),
             ),
@@ -318,6 +346,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         );
       },
     );
+
     if (task != null) {
       await widget.firestore.addGoalTask(_current.id!, task);
     }
@@ -326,129 +355,168 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   Future<void> _editGoal(Goal goal) async {
     final nameCtrl = TextEditingController(text: goal.name);
     DateTime? selectedDeadline = goal.deadline;
-    Color selected = goal.color;
+
     final updated = await showModalBottomSheet<Goal>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor, // follows theme
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         final viewInsets = MediaQuery.of(ctx).viewInsets.bottom;
-        void setLocal(Color c) {
-          selected = c;
-          setState(() {});
-        }
-        Future<void> pickDate() async {
-          final now = DateTime.now();
-          final base = selectedDeadline ?? now;
-          final picked = await showDatePicker(
-            context: ctx,
-            initialDate: base,
-            firstDate: now.subtract(const Duration(days: 0)),
-            lastDate: DateTime(now.year + 5),
-          );
-          if (picked != null) {
-            setState(() {
-              selectedDeadline = picked;
-            });
-          }
-        }
-        return Container(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, viewInsets + 12),
-          decoration: const BoxDecoration(
-            color: Color(0xFF121620),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text('Edit goal',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      selectedDeadline == null
-                          ? 'No due date'
-                          : 'Due: ${selectedDeadline!.month}/${selectedDeadline!.day}/${selectedDeadline!.year}',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.white70),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: pickDate,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    child: const Text('Change date'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _colorOptions
-                    .map(
-                      (c) => GestureDetector(
-                        onTap: () => setLocal(c),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: c,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: selected == c ? Colors.white : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        Color selected = goal.color;
+
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            final handleColor =
+                Theme.of(ctx).brightness == Brightness.dark
+                    ? Colors.white24
+                    : Colors.black26;
+
+            Future<void> pickDate() async {
+              final now = DateTime.now();
+              final base = selectedDeadline ?? now;
+              final picked = await showDatePicker(
+                context: ctx,
+                initialDate: base,
+                firstDate: now,
+                lastDate: DateTime(now.year + 5),
+              );
+              if (picked != null) {
+                setLocalState(() => selectedDeadline = picked);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(16, 10, 16, viewInsets + 12),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
                 ),
-                onPressed: () {
-                  Navigator.pop(
-                    ctx,
-                    Goal(
-                      id: goal.id,
-                      name: nameCtrl.text.trim().isEmpty ? goal.name : nameCtrl.text.trim(),
-                      stat: goal.stat,
-                      progress: goal.progress,
-                      timeframe: goal.timeframe,
-                      color: selected,
-                      deadline: selectedDeadline,
-                      createdAt: goal.createdAt,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle (visible in light & dark)
+                    Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                  );
-                },
-                child: const Text('Save changes'),
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          Text(
+                            'Edit goal',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: nameCtrl,
+                            decoration:
+                                const InputDecoration(labelText: 'Name'),
+                          ),
+                          const SizedBox(height: 12),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  selectedDeadline == null
+                                      ? 'No due date'
+                                      : 'Due: ${selectedDeadline!.month}/${selectedDeadline!.day}/${selectedDeadline!.year}',
+                                  style: Theme.of(ctx)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                          color: Theme.of(ctx)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.7)),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: pickDate,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                ),
+                                child: const Text('Change date'),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Color picker (NO animation, cutout border, matches background)
+                          _ColorPicker(
+                            colors: _colorOptions,
+                            selected: selected,
+                            backgroundColor:
+                                Theme.of(ctx).dialogBackgroundColor,
+                            onPick: (c) => setLocalState(() => selected = c),
+                          ),
+
+                          const SizedBox(height: 14),
+                        ],
+                      ),
+                    ),
+
+                    // Bottom button always at bottom
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A7AFE),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(
+                            ctx,
+                            Goal(
+                              id: goal.id,
+                              name: nameCtrl.text.trim().isEmpty
+                                  ? goal.name
+                                  : nameCtrl.text.trim(),
+                              stat: goal.stat,
+                              progress: goal.progress,
+                              timeframe: goal.timeframe,
+                              color: selected,
+                              deadline: selectedDeadline,
+                              createdAt: goal.createdAt,
+                            ),
+                          );
+                        },
+                        child: const Text('Save changes'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
+
     if (updated != null) {
       await widget.firestore.updateGoal(updated);
       if (mounted) {
@@ -462,17 +530,21 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
   Future<void> _deleteGoal(Goal goal) async {
     if (goal.id == null) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121620),
+        backgroundColor: Theme.of(ctx).dialogBackgroundColor,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: const Text('Delete goal?'),
         content: Text('Remove "${goal.name}" and its tasks?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.white70,
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             child: const Text('Cancel'),
@@ -483,13 +555,15 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
+
     if (confirm == true) {
       await widget.firestore.deleteGoal(goal.id!);
       _changed = true;
@@ -500,29 +574,34 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   Future<void> _editGoalTask(String goalId, Task task) async {
     final titleCtrl = TextEditingController(text: task.title);
     final subtitleCtrl = TextEditingController(text: task.subtitle);
+
     final updated = await showDialog<Task>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121620),
+        backgroundColor: Theme.of(ctx).dialogBackgroundColor,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: const Text('Edit task'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Title'),
-            ),
-            TextField(
-              controller: subtitleCtrl,
-              decoration: const InputDecoration(labelText: 'Details'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              TextField(
+                controller: subtitleCtrl,
+                decoration: const InputDecoration(labelText: 'Details'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.white70,
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             child: const Text('Cancel'),
@@ -553,17 +632,61 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
               backgroundColor: const Color(0xFF3A7AFE),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+
     if (updated != null) {
       await widget.firestore.updateGoalTask(goalId, updated);
       _changed = true;
     }
+  }
+}
+
+// ---------- Shared widgets ----------
+
+class _ColorPicker extends StatelessWidget {
+  const _ColorPicker({
+    required this.colors,
+    required this.selected,
+    required this.backgroundColor,
+    required this.onPick,
+  });
+
+  final List<Color> colors;
+  final Color selected;
+  final Color backgroundColor;
+  final ValueChanged<Color> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: colors.map((c) {
+        final isSelected = c.value == selected.value;
+        return GestureDetector(
+          onTap: () => onPick(c),
+          child: Container(
+            padding: isSelected ? const EdgeInsets.all(3) : EdgeInsets.zero,
+            decoration: BoxDecoration(
+              color: isSelected ? backgroundColor : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
 

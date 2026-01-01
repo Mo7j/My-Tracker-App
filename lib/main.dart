@@ -20,22 +20,53 @@ Future<void> main() async {
   runApp(const MyTrackerApp());
 }
 
+class _ThemeSwitcher extends StatefulWidget {
+  const _ThemeSwitcher({required this.childBuilder});
+
+  final Widget Function(ThemeMode mode, VoidCallback toggle) childBuilder;
+
+  @override
+  State<_ThemeSwitcher> createState() => _ThemeSwitcherState();
+}
+
+class _ThemeSwitcherState extends State<_ThemeSwitcher> {
+  ThemeMode _mode = ThemeMode.dark;
+
+  void _toggle() {
+    setState(() {
+      _mode = _mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.childBuilder(_mode, _toggle);
+  }
+}
+
 class MyTrackerApp extends StatelessWidget {
   const MyTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      home: const HomeShell(),
+    return _ThemeSwitcher(
+      childBuilder: (mode, toggle) => MaterialApp(
+        title: 'My Tracker',
+        debugShowCheckedModeBanner: false,
+        theme: buildAppTheme(dark: false),
+        darkTheme: buildAppTheme(dark: true),
+        themeMode: mode,
+        home: HomeShell(onToggleTheme: toggle, themeMode: mode),
+      ),
     );
   }
 }
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, required this.onToggleTheme, required this.themeMode});
+
+  final VoidCallback onToggleTheme;
+  final ThemeMode themeMode;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -66,6 +97,8 @@ class _HomeShellState extends State<HomeShell> {
           TimelinePage(
             schedule: data.schedule,
             habits: data.habits,
+            isDark: widget.themeMode == ThemeMode.dark,
+            onToggleTheme: widget.onToggleTheme,
             onAddTask: () {
               _handleAddTask(context);
             },
@@ -202,12 +235,29 @@ class _HomeShellState extends State<HomeShell> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121620),
-        title: const Text('Delete habit?'),
-        content: Text('Remove "${habit.name}" and its progress?'),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text('Delete habit?',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        content: Text('Remove "${habit.name}" and its progress?',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -356,19 +406,34 @@ class _HomeShellState extends State<HomeShell> {
   Future<void> _showGoalsActions(BuildContext context) async {
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF121620),
+      backgroundColor:
+          Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121620) : Colors.white,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Text('🚀', style: TextStyle(fontSize: 20)),
-              title: const Text('Add project', style: TextStyle(color: Colors.white)),
+              title: Text(
+                'Add project',
+                style: TextStyle(
+                  color: Theme.of(ctx).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
               onTap: () => Navigator.pop(ctx, 'project'),
             ),
             ListTile(
               leading: const Text('🎯', style: TextStyle(fontSize: 20)),
-              title: const Text('Add goal', style: TextStyle(color: Colors.white)),
+              title: Text(
+                'Add goal',
+                style: TextStyle(
+                  color: Theme.of(ctx).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
               onTap: () => Navigator.pop(ctx, 'goal'),
             ),
           ],
@@ -458,9 +523,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
       maxChildSize: 0.97,
       builder: (_, controller) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF121620),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
           child: ListView(
@@ -471,7 +536,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -529,7 +594,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                 style: Theme.of(context)
                     .textTheme
                     .labelLarge
-                    ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+                    ?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -538,7 +605,8 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                 children: _taskIconOptions
                     .map(
                       (icon) => ChoiceChip(
-                        label: Icon(icon, size: 18, color: Colors.white),
+                        label: Icon(icon,
+                            size: 18, color: Theme.of(context).colorScheme.onSurface),
                         selected: _icon == icon,
                         onSelected: (_) => setState(() => _icon = icon),
                       ),
@@ -551,7 +619,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                 style: Theme.of(context)
                     .textTheme
                     .labelLarge
-                    ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+                    ?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -568,8 +638,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                             color: color,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _color == color ? Colors.white : Colors.transparent,
-                              width: 2,
+                              color: _color == color
+                                  ? Theme.of(context).scaffoldBackgroundColor
+                                  : Colors.transparent,
+                              width: 4,
                             ),
                           ),
                         ),
@@ -710,9 +782,9 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
       maxChildSize: maxSize,
       builder: (_, controller) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF121620),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
           child: ListView(
@@ -723,7 +795,7 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -783,27 +855,27 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Text(
-                    'Times per day',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelLarge
-                        ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  DropdownButton<int>(
-                    value: _timesPerDay,
-                    dropdownColor: const Color(0xFF1A1F2B),
-                    items: [1, 2, 3, 4]
-                        .map((n) => DropdownMenuItem<int>(
-                              value: n,
-                              child: Text('$n',
-                                  style: const TextStyle(color: Colors.white)),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _timesPerDay = v ?? 1;
-                    }),
+                Text(
+                  'Times per day',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                DropdownButton<int>(
+                  value: _timesPerDay,
+                  dropdownColor: Theme.of(context).dialogBackgroundColor,
+                  items: [1, 2, 3, 4]
+                      .map((n) => DropdownMenuItem<int>(
+                            value: n,
+                            child: Text('$n',
+                                style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _timesPerDay = v ?? 1;
+                  }),
                   ),
                 ],
               ),
@@ -813,7 +885,9 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
                 style: Theme.of(context)
                     .textTheme
                     .labelLarge
-                    ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+                    ?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -822,7 +896,8 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
                 children: _iconOptions
                     .map(
                       (icon) => ChoiceChip(
-                        label: Icon(icon, size: 18, color: Colors.white),
+                        label: Icon(icon,
+                            size: 18, color: Theme.of(context).colorScheme.onSurface),
                         selected: _selectedIcon == icon,
                         onSelected: (_) => setState(() => _selectedIcon = icon),
                       ),
@@ -980,13 +1055,14 @@ class _SegmentedNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const addBlue = Color(0xFF3A7AFE);
+    final theme = Theme.of(context);
+    final addBlue = Colors.blueAccent;
     return Container(
       height: 52,
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
-        color: Color(0xFF181C24),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark ? addBlue.withOpacity(0.15) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: Row(
         children: [
@@ -1073,7 +1149,11 @@ class _SegmentItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: selected ? 30 : 26,
-                  color: selected ? Colors.white : const Color(0xFF1C283F).withOpacity(0.6),
+                  color: selected
+                      ? Colors.white
+                      : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
               ],
             ),
@@ -1111,9 +1191,9 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
       maxChildSize: 0.97,
       builder: (_, controller) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF121620),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
           child: ListView(
@@ -1124,7 +1204,7 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1172,8 +1252,10 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
                             color: color,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _projectColor == color ? Colors.white : Colors.transparent,
-                              width: 2,
+                              color: _projectColor == color
+                                  ? Theme.of(context).dialogBackgroundColor
+                                  : Colors.transparent,
+                              width: 4,
                             ),
                           ),
                         ),
@@ -1185,7 +1267,7 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1247,9 +1329,9 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
       maxChildSize: 0.97,
       builder: (_, controller) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF121620),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
           child: ListView(
@@ -1302,14 +1384,19 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
                       (color) => GestureDetector(
                         onTap: () => setState(() => _goalColor = color),
                         child: Container(
-                          width: 32,
-                          height: 32,
+                          padding: _goalColor == color ? const EdgeInsets.all(3) : EdgeInsets.zero,
                           decoration: BoxDecoration(
-                            color: color,
+                            color: _goalColor == color
+                                ? Theme.of(context).dialogBackgroundColor
+                                : Colors.transparent,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _goalColor == color ? Colors.white : Colors.transparent,
-                              width: 2,
+                          ),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
                             ),
                           ),
                         ),
@@ -1381,25 +1468,24 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: Colors.white70, fontWeight: FontWeight.w700),
+          style: theme.textTheme.labelLarge
+              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: theme.colorScheme.onSurface),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38),
+            hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
             filled: true,
-            fillColor: const Color(0xFF1A1F2B),
+            fillColor: theme.colorScheme.surfaceVariant,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -1429,7 +1515,7 @@ class _PickerButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1F2B),
+          color: Theme.of(context).colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -1440,13 +1526,14 @@ class _PickerButton extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .labelMedium
-                  ?.copyWith(color: Colors.white54),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
             ),
             const SizedBox(height: 4),
             Text(
               value,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
             ),
           ],
