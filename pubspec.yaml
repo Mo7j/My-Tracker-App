@@ -1,0 +1,24 @@
+name: my_tracker_app
+description: A colorful dark-mode habit tracker, todo, reminder, and scheduler app.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  fl_chart: ^0.66.2
+  intl: ^0.18.1
+  firebase_core: ^2.27.1
+  cloud_firestore: ^4.15.9
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true

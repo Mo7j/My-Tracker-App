@@ -1,0 +1,16 @@
+# Flutter/Dart/Pub
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+
+# Visual Studio Code
+.vscode/
+
+# IntelliJ related
+.idea/
+
+# MacOS
+.DS_Store
