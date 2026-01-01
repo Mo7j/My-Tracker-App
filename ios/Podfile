@@ -38,6 +38,17 @@ post_install do |installer|
     # Force minimum iOS to 13.0 for all pods to avoid toolchains injecting iOS 10.0
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Remove unsupported -G flag if present in flags arrays
+      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].each do |key|
+        next unless config.build_settings[key]
+        flags = config.build_settings[key]
+        if flags.is_a?(Array)
+          config.build_settings[key] = flags.reject { |f| f == '-G' }
+        elsif flags.is_a?(String)
+          config.build_settings[key] = flags.split.reject { |f| f == '-G' }
+        end
+      end
     end
 
     # Fix: remove bad -G flag in BoringSSL-GRPC on some toolchains
