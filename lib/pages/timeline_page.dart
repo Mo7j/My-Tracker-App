@@ -44,6 +44,7 @@ class _TimelinePageState extends State<TimelinePage> {
   late final ScrollController _scrollController;
   bool _scrolledToNow = false;
   double _horizontalDrag = 0;
+  DateTime? _weekExpandedDate;
 
   @override
   void initState() {
@@ -118,6 +119,9 @@ class _TimelinePageState extends State<TimelinePage> {
           setState(() {
             selectedDate = selectedDate.add(Duration(days: view == 'Week' ? delta * 7 : delta));
             _scrolledToNow = false;
+            if (view == 'Week') {
+              _weekExpandedDate = selectedDate;
+            }
             widget.onDateChanged?.call(selectedDate);
           });
         }
@@ -147,8 +151,10 @@ class _TimelinePageState extends State<TimelinePage> {
                         _scrolledToNow = false;
                         widget.onDateChanged?.call(selectedDate);
                         _jumpedToMonth = false;
+                        _weekExpandedDate = null;
                       } else if (value == 'Week') {
                         selectedDate = DateTime.now();
+                        _weekExpandedDate = selectedDate;
                         widget.onDateChanged?.call(selectedDate);
                       } else if (value == 'Month') {
                         _jumpedToMonth = false;
@@ -163,22 +169,17 @@ class _TimelinePageState extends State<TimelinePage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        _DayChip(label: _relativeDayLabel(selectedDate)),
-                      ],
+                    Expanded(
+                      child: Text(
+                        DateFormat("EEEE, MMM d").format(selectedDate),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      DateFormat("EEEE,  MMMM d").format(selectedDate),
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
+                    _DayChip(label: _relativeDayLabel(selectedDate)),
                   ],
                 ),
               ),
@@ -302,18 +303,33 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   List<Widget> _buildWeekView(BuildContext context) {
-    final start = startOfWeek(selectedDate);
+    final anchor = _weekExpandedDate ?? selectedDate;
+    final start = startOfWeek(anchor);
     final days = List.generate(7, (i) => start.add(Duration(days: i)));
+    final end = start.add(const Duration(days: 6));
+    final rangeLabel = '${DateFormat.d().format(start)} – ${DateFormat.d().format(end)} '
+        '${DateFormat.MMM().format(start)}';
+    final weekChip = _relativeWeekLabel(start);
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-          child: Text(
-            _weekLabel(start),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  rangeLabel,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              _DayChip(label: weekChip),
+            ],
           ),
         ),
       ),
+      const SliverToBoxAdapter(child: SizedBox(height: 8)),
       SliverList.builder(
         itemCount: days.length,
         itemBuilder: (_, index) {
@@ -328,8 +344,19 @@ class _TimelinePageState extends State<TimelinePage> {
                 selectedDate = date;
                 widget.onDateChanged?.call(date);
               }),
+              onToggleExpanded: () => setState(() {
+                final isOpen = _weekExpandedDate != null && isSameDay(_weekExpandedDate!, date);
+                if (isOpen) {
+                  _weekExpandedDate = null;
+                  selectedDate = date;
+                } else {
+                  _weekExpandedDate = date;
+                  selectedDate = date;
+                  widget.onDateChanged?.call(date);
+                }
+              }),
               dayId: _dayId(date),
-              expanded: isSameDay(selectedDate, date),
+              expanded: _weekExpandedDate != null && isSameDay(_weekExpandedDate!, date),
               onToggleDone: widget.onToggleTaskDone,
               onHabitTap: widget.onToggleHabit,
               habits: widget.habits,
@@ -500,13 +527,17 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   String _weekLabel(DateTime weekStart) {
+    final end = weekStart.add(const Duration(days: 6));
+    return '${DateFormat.MMMd().format(weekStart)} – ${DateFormat.MMMd().format(end)}';
+  }
+
+  String _relativeWeekLabel(DateTime weekStart) {
     final todayStart = startOfWeek(DateTime.now());
     final diffDays = weekStart.difference(todayStart).inDays;
     if (diffDays == 0) return 'This week';
     if (diffDays == 7) return 'Next week';
     if (diffDays == -7) return 'Last week';
-    final end = weekStart.add(const Duration(days: 6));
-    return 'Week of ${DateFormat.MMMd().format(weekStart)} - ${DateFormat.MMMd().format(end)}';
+    return 'Week';
   }
 
   String _dayId(DateTime date) {
@@ -1273,6 +1304,7 @@ class _WeekDayTile extends StatelessWidget {
     required this.onExpand,
     required this.dayId,
     required this.expanded,
+    required this.onToggleExpanded,
     this.onToggleDone,
     this.onHabitTap,
     this.habits,
@@ -1283,6 +1315,7 @@ class _WeekDayTile extends StatelessWidget {
   final DateTime date;
   final List<Task> tasks;
   final VoidCallback onExpand;
+  final VoidCallback onToggleExpanded;
   final String dayId;
   final bool expanded;
   final Future<void> Function(String dayId, String taskId, bool isDone)? onToggleDone;
@@ -1303,14 +1336,14 @@ class _WeekDayTile extends StatelessWidget {
           color: theme.cardColor,
           borderRadius: border,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, expanded ? 12 : 8),
         child: Column(
           children: [
             Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: border,
-                onTap: onExpand,
+                onTap: onToggleExpanded,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                   child: Row(
@@ -1364,6 +1397,17 @@ class _WeekDayTile extends StatelessWidget {
                             '${tasks.length} left',
                             style: theme.textTheme.labelMedium
                                 ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.65)),
+                          ),
+                          const SizedBox(width: 10),
+                          AnimatedRotation(
+                            turns: expanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutCubic,
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              size: 22,
+                            ),
                           ),
                         ],
                       ),
@@ -1600,7 +1644,7 @@ class _ShakeState extends State<_Shake> with TickerProviderStateMixin {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 2200),
     );
   }
 
