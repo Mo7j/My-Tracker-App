@@ -34,6 +34,13 @@ jobs:
         working-directory: ios
         run: pod repo update
 
+      # Move this BEFORE pod install so env flags can't poison pod builds.
+      - name: Sanitize compiler env flags
+        run: |
+          unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+          echo "After unset:"
+          env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
+
       - name: Clean CocoaPods (safe to run; ignores errors)
         working-directory: ios
         run: |
@@ -44,19 +51,13 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      # ✅ ADD THESE TWO STEPS (do not remove anything else)
+      # Optional but useful: keep it after pods are installed (so it can inspect Pods too)
       - name: Debug where -G comes from
         run: |
-          echo "Searching ios/ for -G..."
+          echo "Searching repo for ' -G'..."
           grep -R --line-number " -G" ios || true
 
-          echo "Env flags:"
-          env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
-
-      - name: Sanitize compiler env flags
-        run: |
-          unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
-          echo "After unset:"
+          echo "Env flags (should be empty):"
           env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
 
       - name: Build iOS (no codesign)
