@@ -22,35 +22,13 @@ class ProjectDetailPage extends StatefulWidget {
 
 class _ProjectDetailPageState extends State<ProjectDetailPage>
     with SingleTickerProviderStateMixin {
-  static const _colorOptions = [
-    Color(0xFF7EE6A1),
-    Color(0xFFB784FF),
-    Color(0xFFFF9F6E),
-    Color(0xFFE7E167),
-    Color(0xFF7AE1FF),
-    Color(0xFFFF7A8A),
-    Color(0xFF61E294),
-    Color(0xFF3A7AFE),
-    Color(0xFFEF5350),
-    Color(0xFF26C6DA),
-    Color(0xFF42A5F5),
-    Color(0xFFFFB74D),
-    Color(0xFF8D6E63),
-    Color(0xFFFFC107),
-    Color(0xFFA1887F),
-    Color(0xFF9C27B0),
-    Color(0xFF00BFA5),
-    Color(0xFF607D8B),
-    Color(0xFFCE93D8),
-    Color(0xFF80CBC4),
-    Color(0xFFD4E157),
-  ];
 
   late Project _current;
   late final Ticker _ticker;
   double _phase = 0;
   Duration _lastElapsed = Duration.zero;
   bool _changed = false;
+  List<Task> _tasks = const [];
 
   @override
   void initState() {
@@ -149,7 +127,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
               ? widget.firestore.streamProjectTasks(project.id!)
               : const Stream.empty(),
           builder: (context, snapshot) {
-            final tasks = snapshot.data ?? [];
+            if (snapshot.hasData) {
+              _tasks = snapshot.data!;
+            }
+            final tasks = _tasks;
             final done = tasks.where((t) => t.isDone).length;
             final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
             return ListView(
@@ -267,17 +248,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
                                       .bodyMedium
                                       ?.copyWith(
                                           color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withOpacity(0.7)),
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7)),
                                 ),
-                                onTap: () async {
-                                  await widget.firestore.updateProjectTaskDone(
-                                    project.id!,
-                                    task.id!,
-                                    !task.isDone,
-                                  );
-                                },
+                                onTap: () => _toggleTaskDone(task),
                               ),
                             ),
                           ),
@@ -294,6 +269,51 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
           child: const Icon(Icons.add, size: 30),
         ),
       ),
+    );
+  }
+
+  Future<void> _toggleTaskDone(Task task) async {
+    if (task.id == null || _current.id == null) return;
+    final previous = List<Task>.from(_tasks);
+    final updated = _tasks
+        .map((t) => t.id == task.id ? _copyTask(t, isDone: !t.isDone) : t)
+        .toList();
+    setState(() {
+      _tasks = updated;
+    });
+    try {
+      await widget.firestore
+          .updateProjectTaskDone(_current.id!, task.id!, !task.isDone);
+    } catch (_) {
+      setState(() {
+        _tasks = previous;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not update task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Task _copyTask(Task task, {required bool isDone}) {
+    return Task(
+      id: task.id,
+      habitId: task.habitId,
+      title: task.title,
+      subtitle: task.subtitle,
+      category: task.category,
+      color: task.color,
+      icon: task.icon,
+      isHabit: task.isHabit,
+      isDone: isDone,
+      isImportant: task.isImportant,
+      startDate: task.startDate,
+      start: task.start,
+      end: task.end,
     );
   }
 
@@ -376,145 +396,38 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   }
 
   Future<void> _editProject(Project project) async {
-    final nameCtrl = TextEditingController(text: project.name);
-    final descCtrl = TextEditingController(text: project.description);
-
     final updated = await showModalBottomSheet<Project>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final viewInsets = MediaQuery.of(ctx).viewInsets.bottom;
-        Color selected = project.color;
-
-        return StatefulBuilder(
-          builder: (ctx, setLocalState) {
-            final handleColor =
-                Theme.of(ctx).brightness == Brightness.dark
-                    ? Colors.white24
-                    : Colors.black26;
-
-            return Padding(
-              padding: EdgeInsets.fromLTRB(16, 10, 16, viewInsets + 12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Handle (visible in light & dark)
-                    Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: handleColor,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          Text(
-                            'Edit project',
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: nameCtrl,
-                            decoration:
-                                const InputDecoration(labelText: 'Name'),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: descCtrl,
-                            decoration: const InputDecoration(
-                                labelText: 'Description'),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Color',
-                            style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                                color: Theme.of(ctx)
-                                    .colorScheme
-                                    .onSurface
-                                    .withOpacity(0.7),
-                                fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Color picker (NO animation, cutout border)
-                          _ColorPicker(
-                            colors: _colorOptions,
-                            selected: selected,
-                            backgroundColor:
-                                Theme.of(ctx).dialogBackgroundColor,
-                            onPick: (c) => setLocalState(() => selected = c),
-                          ),
-
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-
-                    // Bottom button always at bottom (keyboard-safe)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3A7AFE),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(
-                            ctx,
-                            Project(
-                              id: project.id,
-                              name: nameCtrl.text.trim().isEmpty
-                                  ? project.name
-                                  : nameCtrl.text.trim(),
-                              description: descCtrl.text.trim().isEmpty
-                                  ? project.description
-                                  : descCtrl.text.trim(),
-                              progress: project.progress,
-                              color: selected,
-                              weeklyBurndown: project.weeklyBurndown,
-                            ),
-                          );
-                        },
-                        child: const Text('Save changes'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      enableDrag: true,
+      isDismissible: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditProjectSheet(project: project),
     );
 
     if (updated != null) {
+      final previous = _current;
       if (mounted) {
         setState(() {
           _current = updated;
           _changed = true;
         });
       }
-      await widget.firestore.updateProject(updated);
+      try {
+        await widget.firestore.updateProject(updated);
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _current = previous;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not save project. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -529,9 +442,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
       ),
       builder: (ctx) {
         final handleColor =
-            Theme.of(ctx).brightness == Brightness.dark
-                ? Colors.white24
-                : Colors.black26;
+            Theme.of(ctx).brightness == Brightness.dark ? Colors.white24 : Colors.black26;
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -549,20 +460,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
               const SizedBox(height: 10),
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.redAccent),
-                title: const Text('Delete project',
-                    style: TextStyle(color: Colors.redAccent)),
+                title: const Text('Delete project', style: TextStyle(color: Colors.redAccent)),
                 subtitle: Text('Remove "${project.name}" and its tasks?'),
                 onTap: () => Navigator.pop(ctx, true),
               ),
               ListTile(
                 leading: Icon(Icons.close,
-                    color: Theme.of(ctx)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.7)),
-                title: Text('Cancel',
-                    style: TextStyle(
-                        color: Theme.of(ctx).colorScheme.onSurface)),
+                    color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7)),
+                title: Text('Cancel', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
                 onTap: () => Navigator.pop(ctx, false),
               ),
             ],
@@ -607,8 +512,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
+              foregroundColor: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             child: const Text('Cancel'),
@@ -639,8 +543,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
               backgroundColor: const Color(0xFF3A7AFE),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Save'),
           ),
@@ -652,6 +555,151 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
       await widget.firestore.updateProjectTask(projectId, updated);
       _changed = true;
     }
+  }
+}
+
+class _EditProjectSheet extends StatefulWidget {
+  const _EditProjectSheet({required this.project});
+  final Project project;
+
+  @override
+  State<_EditProjectSheet> createState() => _EditProjectSheetState();
+}
+
+class _EditProjectSheetState extends State<_EditProjectSheet> {
+  static const _colorOptions = <Color>[
+    Color(0xFFEFDF48),
+    Color(0xFFE87F21),
+    Color(0xFFD03E40),
+    Color(0xFFCD327D),
+    Color(0xFF6327E1),
+    Color(0xFF2263E3),
+    Color(0xFF27B4E0),
+    Color(0xFF27E086),
+    Color(0xFF129520),
+    Color(0xFF646464),
+  ];
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _descCtrl;
+  late Color _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.project.name);
+    _descCtrl = TextEditingController(text: widget.project.description);
+    _selected = widget.project.color;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.9,
+      minChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (_, controller) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
+          child: ListView(
+            controller: controller,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Edit project',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Color',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              _ColorPicker(
+                colors: _colorOptions,
+                selected: _selected,
+                backgroundColor: Theme.of(context).dialogBackgroundColor,
+                onPick: (c) => setState(() => _selected = c),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3A7AFE),
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _submit,
+                child: const Text('Save changes'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _submit() {
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a project name')),
+      );
+      return;
+    }
+    Navigator.pop(
+      context,
+      Project(
+        id: widget.project.id,
+        name: _nameCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        progress: widget.project.progress,
+        color: _selected,
+        weeklyBurndown: widget.project.weeklyBurndown,
+      ),
+    );
   }
 }
 
@@ -757,9 +805,10 @@ class _WavyHeaderBar extends StatelessWidget {
               Container(
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.04)
+                      : Colors.white),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
                 ),
               ),
               ClipRRect(
@@ -792,21 +841,20 @@ class _WavyHeaderBar extends StatelessWidget {
                                   .titleMedium
                                   ?.copyWith(
                                       fontWeight: FontWeight.w800,
-                                      color: Colors.white),
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
                                   ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withOpacity(0.7)),
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white70
+                                          : Colors.black54),
                             ),
                           ],
                         ),
@@ -818,7 +866,9 @@ class _WavyHeaderBar extends StatelessWidget {
                             .titleMedium
                             ?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
                       ),
                     ],
                   ),

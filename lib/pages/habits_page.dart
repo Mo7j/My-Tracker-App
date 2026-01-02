@@ -119,10 +119,7 @@ class _HabitCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF171C25) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isDark
-                ? Colors.white12
-                : theme.colorScheme.onSurface.withOpacity(0.08)),
+        
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),

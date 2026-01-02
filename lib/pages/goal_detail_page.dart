@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
+import 'goals_projects_page.dart' show GoalProgressRing;
 
 class GoalDetailPage extends StatefulWidget {
   const GoalDetailPage({
@@ -44,6 +45,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
   late Goal _current;
   bool _changed = false;
+  List<Task> _tasks = const [];
 
   @override
   void initState() {
@@ -126,33 +128,25 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
               ? widget.firestore.streamGoalTasks(goal.id!)
               : const Stream.empty(),
           builder: (context, snapshot) {
-            final tasks = snapshot.data ?? [];
+            if (snapshot.hasData) {
+              _tasks = snapshot.data!;
+            }
+            final tasks = _tasks;
             final done = tasks.where((t) => t.isDone).length;
             final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
+            final remainingText = _remainingLabel(goal);
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (goal.stat.isNotEmpty)
-                  Text(
-                    goal.stat,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.7)),
-                  ),
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: LinearProgressIndicator(
-                    minHeight: 10,
-                    value: progress,
-                    valueColor: AlwaysStoppedAnimation(goal.color),
-                    backgroundColor: Theme.of(context).brightness ==
-                            Brightness.dark
-                        ? Colors.white10
-                        : Colors.black12,
+                Center(
+                  child: GoalProgressRing(
+                    progress: progress,
+                    color: goal.color,
+                    size: 190,
+                    label: goal.name,
+                    remainingText: remainingText,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -250,13 +244,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
                                 ),
                                 title: Text(task.title),
                                 subtitle: Text(task.subtitle),
-                                onTap: () async {
-                                  await widget.firestore.updateGoalTaskDone(
-                                    goal.id!,
-                                    task.id!,
-                                    !task.isDone,
-                                  );
-                                },
+                                onTap: () => _toggleTaskDone(task),
                               ),
                             ),
                           ),
@@ -274,6 +262,60 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleTaskDone(Task task) async {
+    if (task.id == null || _current.id == null) return;
+    final previous = List<Task>.from(_tasks);
+    final updated = _tasks
+        .map((t) => t.id == task.id ? _copyTask(t, isDone: !t.isDone) : t)
+        .toList();
+    setState(() {
+      _tasks = updated;
+    });
+    try {
+      await widget.firestore.updateGoalTaskDone(_current.id!, task.id!, !task.isDone);
+    } catch (_) {
+      setState(() {
+        _tasks = previous;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not update task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Task _copyTask(Task task, {required bool isDone}) {
+    return Task(
+      id: task.id,
+      habitId: task.habitId,
+      title: task.title,
+      subtitle: task.subtitle,
+      category: task.category,
+      color: task.color,
+      icon: task.icon,
+      isHabit: task.isHabit,
+      isDone: isDone,
+      isImportant: task.isImportant,
+      startDate: task.startDate,
+      start: task.start,
+      end: task.end,
+    );
+  }
+
+  String _remainingLabel(Goal goal) {
+    final deadline = goal.deadline;
+    if (deadline == null) return 'No deadline';
+    final days = deadline.difference(DateTime.now()).inDays;
+    if (days < 0) return 'Overdue';
+    if (days == 0) return 'Due today';
+    if (days == 1) return '1 day left';
+    return '$days days left';
   }
 
   Future<void> _showAddTask() async {
@@ -353,177 +395,37 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   }
 
   Future<void> _editGoal(Goal goal) async {
-    final nameCtrl = TextEditingController(text: goal.name);
-    DateTime? selectedDeadline = goal.deadline;
-
     final updated = await showModalBottomSheet<Goal>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor, // follows theme
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final viewInsets = MediaQuery.of(ctx).viewInsets.bottom;
-        Color selected = goal.color;
-
-        return StatefulBuilder(
-          builder: (ctx, setLocalState) {
-            final handleColor =
-                Theme.of(ctx).brightness == Brightness.dark
-                    ? Colors.white24
-                    : Colors.black26;
-
-            Future<void> pickDate() async {
-              final now = DateTime.now();
-              final base = selectedDeadline ?? now;
-              final picked = await showDatePicker(
-                context: ctx,
-                initialDate: base,
-                firstDate: now,
-                lastDate: DateTime(now.year + 5),
-              );
-              if (picked != null) {
-                setLocalState(() => selectedDeadline = picked);
-              }
-            }
-
-            return Padding(
-              padding: EdgeInsets.fromLTRB(16, 10, 16, viewInsets + 12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Handle (visible in light & dark)
-                    Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: handleColor,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Expanded(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          Text(
-                            'Edit goal',
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: nameCtrl,
-                            decoration:
-                                const InputDecoration(labelText: 'Name'),
-                          ),
-                          const SizedBox(height: 12),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  selectedDeadline == null
-                                      ? 'No due date'
-                                      : 'Due: ${selectedDeadline!.month}/${selectedDeadline!.day}/${selectedDeadline!.year}',
-                                  style: Theme.of(ctx)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                          color: Theme.of(ctx)
-                                              .colorScheme
-                                              .onSurface
-                                              .withOpacity(0.7)),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: pickDate,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Theme.of(ctx)
-                                      .colorScheme
-                                      .onSurface
-                                      .withOpacity(0.7),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                ),
-                                child: const Text('Change date'),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          // Color picker (NO animation, cutout border, matches background)
-                          _ColorPicker(
-                            colors: _colorOptions,
-                            selected: selected,
-                            backgroundColor:
-                                Theme.of(ctx).dialogBackgroundColor,
-                            onPick: (c) => setLocalState(() => selected = c),
-                          ),
-
-                          const SizedBox(height: 14),
-                        ],
-                      ),
-                    ),
-
-                    // Bottom button always at bottom
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3A7AFE),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(
-                            ctx,
-                            Goal(
-                              id: goal.id,
-                              name: nameCtrl.text.trim().isEmpty
-                                  ? goal.name
-                                  : nameCtrl.text.trim(),
-                              stat: goal.stat,
-                              progress: goal.progress,
-                              timeframe: goal.timeframe,
-                              color: selected,
-                              deadline: selectedDeadline,
-                              createdAt: goal.createdAt,
-                            ),
-                          );
-                        },
-                        child: const Text('Save changes'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      enableDrag: true,
+      isDismissible: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditGoalSheet(goal: goal),
     );
 
     if (updated != null) {
-      await widget.firestore.updateGoal(updated);
+      final previous = _current;
       if (mounted) {
         setState(() {
           _current = updated;
           _changed = true;
         });
+      }
+      try {
+        await widget.firestore.updateGoal(updated);
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _current = previous;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not save goal. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }
@@ -645,6 +547,175 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
       await widget.firestore.updateGoalTask(goalId, updated);
       _changed = true;
     }
+  }
+}
+
+class _EditGoalSheet extends StatefulWidget {
+  const _EditGoalSheet({required this.goal});
+  final Goal goal;
+
+  @override
+  State<_EditGoalSheet> createState() => _EditGoalSheetState();
+}
+
+class _EditGoalSheetState extends State<_EditGoalSheet> {
+  static const _colorOptions = <Color>[
+    Color(0xFFEFDF48),
+    Color(0xFFE87F21),
+    Color(0xFFD03E40),
+    Color(0xFFCD327D),
+    Color(0xFF6327E1),
+    Color(0xFF2263E3),
+    Color(0xFF27B4E0),
+    Color(0xFF27E086),
+    Color(0xFF129520),
+    Color(0xFF646464),
+  ];
+  late final TextEditingController _nameCtrl;
+  DateTime? _deadline;
+  late Color _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.goal.name);
+    _deadline = widget.goal.deadline;
+    _selected = widget.goal.color;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.9,
+      minChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (_, controller) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 12 + viewInsets),
+          child: ListView(
+            controller: controller,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Edit goal',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Deadline'),
+                subtitle: Text(
+                  _deadline == null
+                      ? 'None'
+                      : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.calendar_today),
+                  onPressed: _pickDate,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Color',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              _ColorPicker(
+                colors: _colorOptions,
+                selected: _selected,
+                backgroundColor: Theme.of(context).dialogBackgroundColor,
+                onPick: (c) => setState(() => _selected = c),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3A7AFE),
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _submit,
+                child: const Text('Save changes'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final base = _deadline ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: base,
+      firstDate: now,
+      lastDate: DateTime(now.year + 5),
+    );
+    if (picked != null) {
+      setState(() => _deadline = picked);
+    }
+  }
+
+  void _submit() {
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a goal name')),
+      );
+      return;
+    }
+    Navigator.pop(
+      context,
+      Goal(
+        id: widget.goal.id,
+        name: _nameCtrl.text.trim(),
+        stat: widget.goal.stat,
+        progress: widget.goal.progress,
+        timeframe: widget.goal.timeframe,
+        color: _selected,
+        deadline: _deadline,
+        createdAt: widget.goal.createdAt,
+      ),
+    );
   }
 }
 

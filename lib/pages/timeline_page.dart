@@ -41,13 +41,21 @@ class _TimelinePageState extends State<TimelinePage> {
   DateTime selectedDate = DateTime.now();
   final List<GlobalKey> _monthKeys = List<GlobalKey>.generate(12, (_) => GlobalKey());
   bool _jumpedToMonth = false;
-  final ScrollController _scrollController = ScrollController();
+  late final ScrollController _scrollController;
   bool _scrolledToNow = false;
+  double _horizontalDrag = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     widget.onDateChanged?.call(selectedDate);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   List<Task> _tasksForDate(DateTime date) {
@@ -89,153 +97,193 @@ class _TimelinePageState extends State<TimelinePage> {
 
     _maybeScrollToNow(entries);
 
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _PinnedHeaderDelegate(
-            minExtent: 70,
-            maxExtent: 70,
-            child: Container(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: _HeaderCompactRow(
-                selectedDate: selectedDate,
-                subtitle: _headerSubtitle(),
-                view: view,
-                isDark: widget.isDark,
-                onToggleTheme: widget.onToggleTheme,
-                onViewChanged: (value) {
-                  setState(() {
-                    view = value;
-                    if (value == 'Today') {
-                      selectedDate = DateTime.now();
-                      _scrolledToNow = false;
-                      widget.onDateChanged?.call(selectedDate);
-                      _jumpedToMonth = false;
-                    } else if (value == 'Month') {
-                      _jumpedToMonth = false;
-                    }
-                  });
-                },
+    return GestureDetector(
+      behavior: HitTestBehavior.deferToChild,
+      onHorizontalDragStart: (_) => _horizontalDrag = 0,
+      onHorizontalDragUpdate: (details) {
+        if (view != 'Today' && view != 'Week') return;
+        _horizontalDrag += details.delta.dx;
+      },
+      onHorizontalDragEnd: (details) {
+        if (view != 'Today' && view != 'Week') return;
+        final velocity = details.primaryVelocity ?? 0;
+        int delta = 0;
+        if (velocity.abs() > 400) {
+          delta = velocity > 0 ? -1 : 1;
+        } else if (_horizontalDrag.abs() > 60) {
+          delta = _horizontalDrag > 0 ? -1 : 1;
+        }
+        _horizontalDrag = 0;
+        if (delta != 0) {
+          setState(() {
+            selectedDate = selectedDate.add(Duration(days: view == 'Week' ? delta * 7 : delta));
+            _scrolledToNow = false;
+            widget.onDateChanged?.call(selectedDate);
+          });
+        }
+      },
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedHeaderDelegate(
+              minExtent: 70,
+              maxExtent: 70,
+              child: Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: _HeaderCompactRow(
+                  selectedDate: selectedDate,
+                  subtitle: _headerSubtitle(),
+                  view: view,
+                  isDark: widget.isDark,
+                  onToggleTheme: widget.onToggleTheme,
+                  onViewChanged: (value) {
+                    setState(() {
+                      view = value;
+                      if (value == 'Today') {
+                        selectedDate = DateTime.now();
+                        _scrolledToNow = false;
+                        widget.onDateChanged?.call(selectedDate);
+                        _jumpedToMonth = false;
+                      } else if (value == 'Week') {
+                        selectedDate = DateTime.now();
+                        widget.onDateChanged?.call(selectedDate);
+                      } else if (value == 'Month') {
+                        _jumpedToMonth = false;
+                      }
+                    });
+                  },
+                ),
               ),
             ),
           ),
-        ),
-        if (view == 'Today')
-          SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: Text(
-                  DateFormat("EEEE,  MMMM d").format(selectedDate),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-            ),
-          ),
-        if (view == 'Today')
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        if (view == 'Today')
-          SliverToBoxAdapter(
-            child: _HabitRow(
-              habits: widget.habits,
-              date: selectedDate,
-              onTap: widget.onToggleHabit,
-            ),
-          ),
-        if (view == 'Today') const SliverToBoxAdapter(child: SizedBox(height: 12)),
-        if (view == 'Today')
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        if (view == 'Today') ...[
-          if (entries.isEmpty)
+          if (view == 'Today')
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    'No tasks yet',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ),
-            )
-          else
-            SliverList.separated(
-              itemBuilder: (_, index) {
-                final entry = entries[index];
-                if (entry.isNow) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
-                    child: Row(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white12
-                                : Colors.black38,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white12
-                                : Colors.black38,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Now ${DateFormat('hh:mm a').format(DateTime.now())}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withOpacity(0.7),
-                                  fontWeight: FontWeight.w700),
-                        ),
+                        _DayChip(label: _relativeDayLabel(selectedDate)),
                       ],
                     ),
-                  );
-                }
-                final task = entry.task!;
-                final nowMinutes = TimeOfDay.now().hour * 60 + TimeOfDay.now().minute;
-                final taskMinutes = task.end.hour * 60 + task.end.minute;
-                final isPast = isToday && taskMinutes < nowMinutes;
-                final isFutureDone = isToday && taskMinutes > nowMinutes && task.isDone;
-                final isFirst = index == 0;
-                final isLast = index == entries.length - 1;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: _TimelineTile(
-                    task: task,
-                    isFirst: isFirst,
-                    isLast: isLast,
-                    dayId: _dayId(selectedDate),
-                    onToggleDone: widget.onToggleTaskDone,
-                    onHabitTap: widget.onToggleHabit,
-                    habits: widget.habits,
-                    date: selectedDate,
-                    onEditTask: widget.onEditTask,
-                    onDeleteTask: widget.onDeleteTask,
-                    isDimmed: isPast || isFutureDone,
-                  ),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemCount: entries.length,
+                    const SizedBox(height: 8),
+                    Text(
+                      DateFormat("EEEE,  MMMM d").format(selectedDate),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-        ] else if (view == 'Week') ..._buildWeekView(context) else ..._buildMonthView(context),
-      ],
+          if (view == 'Today') const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          if (view == 'Today')
+            SliverToBoxAdapter(
+              child: _HabitRow(
+                habits: widget.habits,
+                date: selectedDate,
+                onTap: widget.onToggleHabit,
+              ),
+            ),
+          if (view == 'Today') const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          if (view == 'Today') const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          if (view == 'Today') ...[
+            if (entries.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Text(
+                      'No tasks yet',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverList.separated(
+                itemBuilder: (_, index) {
+                  final entry = entries[index];
+                  if (entry.isNow) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.15),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Now ${DateFormat('hh:mm a').format(DateTime.now())}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.7),
+                                    fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  final task = entry.task!;
+                  final nowMinutes = TimeOfDay.now().hour * 60 + TimeOfDay.now().minute;
+                  final taskMinutes = task.end.hour * 60 + task.end.minute;
+                  final isPastDay = selectedDate.isBefore(DateTime(now.year, now.month, now.day));
+                  final isPastToday = isToday && taskMinutes < nowMinutes;
+                  final isDimmed = isPastDay || (isToday && isPastToday && !task.isDone);
+                  final isFirst = index == 0;
+                  final isLast = index == entries.length - 1;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: _TimelineTile(
+                      task: task,
+                      isFirst: isFirst,
+                      isLast: isLast,
+                      dayId: _dayId(selectedDate),
+                      onToggleDone: widget.onToggleTaskDone,
+                      onHabitTap: widget.onToggleHabit,
+                      habits: widget.habits,
+                      date: selectedDate,
+                      onEditTask: widget.onEditTask,
+                      onDeleteTask: widget.onDeleteTask,
+                      isDimmed: isDimmed,
+                    ),
+                  );
+                },
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemCount: entries.length,
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ] else if (view == 'Week') ..._buildWeekView(context) else ..._buildMonthView(context),
+        ],
+      ),
     );
   }
 
@@ -257,6 +305,15 @@ class _TimelinePageState extends State<TimelinePage> {
     final start = startOfWeek(selectedDate);
     final days = List.generate(7, (i) => start.add(Duration(days: i)));
     return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+          child: Text(
+            _weekLabel(start),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ),
       SliverList.builder(
         itemCount: days.length,
         itemBuilder: (_, index) {
@@ -272,6 +329,7 @@ class _TimelinePageState extends State<TimelinePage> {
                 widget.onDateChanged?.call(date);
               }),
               dayId: _dayId(date),
+              expanded: isSameDay(selectedDate, date),
               onToggleDone: widget.onToggleTaskDone,
               onHabitTap: widget.onToggleHabit,
               habits: widget.habits,
@@ -426,6 +484,29 @@ class _TimelinePageState extends State<TimelinePage> {
       default:
         return 'Today at a glance';
     }
+  }
+
+  String _relativeDayLabel(DateTime date) {
+    final today = DateTime.now();
+    final target = DateTime(date.year, date.month, date.day);
+    final base = DateTime(today.year, today.month, today.day);
+    final diff = target.difference(base).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == -1) return 'Yesterday';
+    if (diff == 1) return 'Tomorrow';
+    if (diff > 1 && diff <= 7) return 'In $diff days';
+    if (diff < -1 && diff >= -7) return '${diff.abs()} days ago';
+    return DateFormat.MMMd().format(date);
+  }
+
+  String _weekLabel(DateTime weekStart) {
+    final todayStart = startOfWeek(DateTime.now());
+    final diffDays = weekStart.difference(todayStart).inDays;
+    if (diffDays == 0) return 'This week';
+    if (diffDays == 7) return 'Next week';
+    if (diffDays == -7) return 'Last week';
+    final end = weekStart.add(const Duration(days: 6));
+    return 'Week of ${DateFormat.MMMd().format(weekStart)} - ${DateFormat.MMMd().format(end)}';
   }
 
   String _dayId(DateTime date) {
@@ -790,7 +871,7 @@ class _TimelineTile extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerRight,
             child: Text(
-              formatTime(task.end),
+              _remainingTimeLabel(task, date),
               style: timeStyle?.copyWith(fontSize: 12),
             ),
           ),
@@ -846,6 +927,26 @@ class _TimelineTile extends StatelessWidget {
       ],
     );
     return Opacity(opacity: isDimmed ? 0.4 : 1.0, child: row);
+  }
+
+  String _remainingTimeLabel(Task task, DateTime date) {
+    final now = DateTime.now();
+    final end = DateTime(date.year, date.month, date.day, task.end.hour, task.end.minute);
+    final diff = end.difference(now);
+    if (diff.isNegative) return 'Deadline passed';
+    final minutes = diff.inMinutes;
+    if (minutes < 1) return 'Now';
+    if (minutes < 60) return '$minutes min left';
+    final days = diff.inDays;
+    if (days >= 1) {
+      final hoursRem = diff.inHours % 24;
+      if (hoursRem == 0) return '$days d left';
+      return '$days d ${hoursRem}h left';
+    }
+    final hours = diff.inHours;
+    final minsRemainder = minutes % 60;
+    if (minsRemainder == 0) return '$hours hr left';
+    return '$hours hr ${minsRemainder}m left';
   }
 }
 
@@ -1096,6 +1197,53 @@ class _HabitCountBadge extends StatelessWidget {
   }
 }
 
+class _DayChip extends StatelessWidget {
+  const _DayChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _BookmarkClipper(),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 8, 18, 8),
+        color: const Color(0xFFFFD54F),
+        child: Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(fontWeight: FontWeight.w800, color: Colors.black87),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookmarkClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    const tip = 12.0;
+    const r = 6.0;
+    final path = Path()
+      ..moveTo(tip, 0)
+      ..quadraticBezierTo(0, 0, 0, r)
+      ..lineTo(0, h / 2)
+      ..lineTo(tip, h)
+      ..lineTo(w - r, h)
+      ..quadraticBezierTo(w, h, w, h - r)
+      ..lineTo(w, r)
+      ..quadraticBezierTo(w, 0, w - r, 0)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
 class _Pill extends StatelessWidget {
   const _Pill({required this.text});
   final String text;
@@ -1124,6 +1272,7 @@ class _WeekDayTile extends StatelessWidget {
     required this.tasks,
     required this.onExpand,
     required this.dayId,
+    required this.expanded,
     this.onToggleDone,
     this.onHabitTap,
     this.habits,
@@ -1135,6 +1284,7 @@ class _WeekDayTile extends StatelessWidget {
   final List<Task> tasks;
   final VoidCallback onExpand;
   final String dayId;
+  final bool expanded;
   final Future<void> Function(String dayId, String taskId, bool isDone)? onToggleDone;
   final Future<void> Function(Habit habit, DateTime date)? onHabitTap;
   final List<Habit>? habits;
@@ -1143,90 +1293,99 @@ class _WeekDayTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: ExpansionTile(
-        backgroundColor: Theme.of(context).cardColor,
-        collapsedBackgroundColor: Theme.of(context).cardColor,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-        onExpansionChanged: (expanded) {
-          if (expanded) onExpand();
-        },
-        title: Row(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat.E().format(date),
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                Text(
-                  DateFormat.MMMd().format(date),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                ...tasks.take(5).map(
-                      (task) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: task.color,
-                            shape: BoxShape.circle,
+    final border = BorderRadius.circular(14);
+    return Card(
+      margin: EdgeInsets.zero,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(borderRadius: border),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          shape: RoundedRectangleBorder(borderRadius: border),
+          collapsedShape: RoundedRectangleBorder(borderRadius: border),
+          initiallyExpanded: expanded,
+          backgroundColor: Colors.transparent,
+          collapsedBackgroundColor: Colors.transparent,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          onExpansionChanged: (isOpen) {
+            if (isOpen) onExpand();
+          },
+          title: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat.E().format(date),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  Text(
+                    DateFormat.MMMd().format(date),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  ...tasks.take(5).map(
+                        (task) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: task.color,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
+                  if (tasks.length > 5)
+                    Text(
+                      '+${tasks.length - 5}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium
+                          ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                     ),
-                if (tasks.length > 5)
+                  const SizedBox(width: 10),
                   Text(
-                    '+${tasks.length - 5}',
+                    '${tasks.length} left',
                     style: Theme.of(context)
                         .textTheme
                         .labelMedium
                         ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                   ),
-                const SizedBox(width: 10),
-                Text(
-                  '${tasks.length} left',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                ),
-              ],
-            ),
-          ],
-        ),
-        children: tasks
-            .map(
-              (task) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: _TaskCard(
-                  task: task,
-                  isCompact: true,
-                  dayId: dayId,
-                  onToggleDone: onToggleDone,
-                  onHabitTap: onHabitTap,
-                  habits: habits,
-                  date: date,
-                  onEditTask: onEditTask,
-                  onDeleteTask: onDeleteTask,
-                ),
+                ],
               ),
-            )
-            .toList(),
+            ],
+          ),
+          children: tasks
+              .map(
+                (task) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: _TaskCard(
+                    task: task,
+                    isCompact: true,
+                    dayId: dayId,
+                    onToggleDone: onToggleDone,
+                    onHabitTap: onHabitTap,
+                    habits: habits,
+                    date: date,
+                    onEditTask: onEditTask,
+                    onDeleteTask: onDeleteTask,
+                  ),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
   }
@@ -1274,7 +1433,7 @@ class _HabitRow extends StatelessWidget {
   }
 }
 
-class _HabitChip extends StatefulWidget {
+class _HabitChip extends StatelessWidget {
   const _HabitChip({required this.habit, required this.ratio, this.onTap});
 
   final Habit habit;
@@ -1282,62 +1441,29 @@ class _HabitChip extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<_HabitChip> createState() => _HabitChipState();
-}
-
-class _HabitChipState extends State<_HabitChip> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: onTap,
       child: Container(
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: widget.habit.color.withOpacity(0.4),
+          color: habit.color.withOpacity(0.4),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: widget.habit.color.withOpacity(0.50), width: 1.2),
+          border: Border.all(color: habit.color.withOpacity(0.50), width: 1.2),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(11),
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, _) {
-                  final waveColor =
-                      widget.ratio >= 1 ? widget.habit.color : widget.habit.color.withOpacity(1.0);
-                  return SizedBox.expand(
-                    child: CustomPaint(
-                      painter: _WavePainter(
-                        color: waveColor,
-                        ratio: widget.ratio,
-                        phase: _controller.value * 2 * math.pi,
-                      ),
-                    ),
-                  );
-                },
+            CustomPaint(
+              painter: _BlockFillPainter(
+                color: habit.color,
+                ratio: ratio,
+                blockCount: habit.timesPerDay <= 0 ? 1 : habit.timesPerDay,
               ),
+              size: const Size(double.infinity, double.infinity),
             ),
-            Icon(widget.habit.icon, color: Colors.white, size: 22),
+            Icon(habit.icon, color: Colors.white, size: 22),
           ],
         ),
       ),
@@ -1345,51 +1471,43 @@ class _HabitChipState extends State<_HabitChip> with SingleTickerProviderStateMi
   }
 }
 
-class _WavePainter extends CustomPainter {
-  _WavePainter({required this.color, required this.ratio, required this.phase});
-
+class _BlockFillPainter extends CustomPainter {
+  _BlockFillPainter({required this.color, required this.ratio, required this.blockCount});
   final Color color;
   final double ratio;
-  final double phase;
+  final int blockCount;
 
   @override
   void paint(Canvas canvas, Size size) {
     final fillRatio = ratio.clamp(0.0, 1.0);
     if (fillRatio <= 0) return;
-    final paintFill = Paint()
-      ..color = color.withOpacity(0.38)
-      ..style = PaintingStyle.fill;
-
-    if (fillRatio >= 0.999) {
-      canvas.drawRect(Offset.zero & size, paintFill);
-      return;
+    final blocks = blockCount.clamp(1, 6);
+    const double gap = 3;
+    const double inset = 3;
+    final usableHeight = size.height - inset * 2;
+    final blockHeight = (usableHeight - gap * (blocks - 1)) / blocks;
+    final blockWidth = size.width - inset * 2;
+    if (blockHeight <= 0 || blockWidth <= 0) return;
+    final paint = Paint()..color = color.withOpacity(0.55);
+    final totalFill = blocks * fillRatio;
+    for (int i = 0; i < blocks; i++) {
+      final fillForBlock = (totalFill - i).clamp(0.0, 1.0);
+      if (fillForBlock <= 0) break;
+      final bottom = size.height - inset - (i * (blockHeight + gap));
+      final top = bottom - (blockHeight * fillForBlock);
+      final rect = Rect.fromLTWH(inset, top, blockWidth, blockHeight * fillForBlock);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+        paint,
+      );
     }
-
-    final fillHeight = size.height * fillRatio;
-    final baseY = size.height - fillHeight;
-    final wavePath = Path()..moveTo(0, size.height);
-    final amplitude = 3.0;
-    final wavelength = size.width / 1.5;
-    wavePath.lineTo(0, baseY);
-
-    for (double x = 0; x <= size.width; x += size.width / 24) {
-      final y = baseY + math.sin((x / wavelength * 2 * math.pi) + phase) * amplitude;
-      final clampedY = y.clamp(0.0, size.height);
-      wavePath.lineTo(x, clampedY);
-    }
-
-    wavePath
-      ..lineTo(size.width, size.height)
-      ..close();
-
-    canvas.drawPath(wavePath, paintFill);
   }
 
   @override
-  bool shouldRepaint(covariant _WavePainter oldDelegate) {
+  bool shouldRepaint(covariant _BlockFillPainter oldDelegate) {
     return oldDelegate.color != color ||
         oldDelegate.ratio != ratio ||
-        oldDelegate.phase != phase;
+        oldDelegate.blockCount != blockCount;
   }
 }
 
@@ -1441,6 +1559,7 @@ class _ShakeState extends State<_Shake> with TickerProviderStateMixin {
     );
   }
 }
+
 
 
 

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:async/async.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -75,15 +77,17 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late final FirestoreService _firestore = FirestoreService(FirebaseFirestore.instance);
   int _index = 0;
-  late Future<_AppData> _future = _loadData();
+  late Stream<_AppData> _stream = _loadStream();
+  _AppData? _data;
   DateTime _timelineDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_AppData>(
-      future: _future,
+    return StreamBuilder<_AppData>(
+      stream: _stream,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        final data = snapshot.data ?? _data;
+        if (data == null) {
           return Scaffold(
             body: Center(
               child: CircularProgressIndicator(
@@ -92,7 +96,6 @@ class _HomeShellState extends State<HomeShell> {
             ),
           );
         }
-        final data = snapshot.data!;
         final pages = [
           TimelinePage(
             schedule: data.schedule,
@@ -118,7 +121,7 @@ class _HomeShellState extends State<HomeShell> {
             goals: data.goals,
             firestore: _firestore,
             onRefresh: () => setState(() {
-              _future = _loadData();
+              _stream = _loadStream();
             }),
           ),
         ];
@@ -164,9 +167,6 @@ class _HomeShellState extends State<HomeShell> {
     );
     if (result != null) {
       await _firestore.addTask(result, date: result.startDate);
-      setState(() {
-        _future = _loadData();
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task added')),
@@ -182,12 +182,65 @@ class _HomeShellState extends State<HomeShell> {
       _firestore.fetchProjects(),
       _firestore.fetchGoals(),
     ]);
-    return _AppData(
+    final data = _AppData(
       schedule: results[0] as List<DaySchedule>,
       habits: results[1] as List<Habit>,
       projects: results[2] as List<Project>,
       goals: results[3] as List<Goal>,
     );
+    _data = data;
+    return data;
+  }
+
+  Stream<_AppData> _loadStream() {
+    final schedule$ = _firestore.streamSchedule();
+    final habits$ = _firestore.streamHabits();
+    final projects$ = _firestore.streamProjects();
+    final goals$ = _firestore.streamGoals();
+
+    return Stream.multi((controller) {
+      List<DaySchedule>? schedule;
+      List<Habit>? habits;
+      List<Project>? projects;
+      List<Goal>? goals;
+
+      void emit() {
+        if (schedule != null && habits != null && projects != null && goals != null) {
+          final data = _AppData(
+            schedule: schedule!,
+            habits: habits!,
+            projects: projects!,
+            goals: goals!,
+          );
+          _data = data;
+          controller.add(data);
+        }
+      }
+
+      final sub1 = schedule$.listen((v) {
+        schedule = v;
+        emit();
+      }, onError: (_) {});
+      final sub2 = habits$.listen((v) {
+        habits = v;
+        emit();
+      }, onError: (_) {});
+      final sub3 = projects$.listen((v) {
+        projects = v;
+        emit();
+      }, onError: (_) {});
+      final sub4 = goals$.listen((v) {
+        goals = v;
+        emit();
+      }, onError: (_) {});
+
+      controller.onCancel = () async {
+        await sub1.cancel();
+        await sub2.cancel();
+        await sub3.cancel();
+        await sub4.cancel();
+      };
+    });
   }
 
   Future<void> _handleAddHabit(BuildContext context) async {
@@ -204,9 +257,6 @@ class _HomeShellState extends State<HomeShell> {
           const SnackBar(content: Text('Habit added')),
         );
       }
-      setState(() {
-        _future = _loadData();
-      });
     }
   }
 
@@ -224,9 +274,6 @@ class _HomeShellState extends State<HomeShell> {
           const SnackBar(content: Text('Habit updated')),
         );
       }
-      setState(() {
-        _future = _loadData();
-      });
     }
   }
 
@@ -263,9 +310,6 @@ class _HomeShellState extends State<HomeShell> {
     );
     if (confirm == true) {
       await _firestore.deleteHabit(habit.id!);
-      setState(() {
-        _future = _loadData();
-      });
     }
   }
 
@@ -279,15 +323,49 @@ class _HomeShellState extends State<HomeShell> {
       builder: (ctx) => _AddProjectSheet(),
     );
     if (result != null) {
-      await _firestore.addProject(result);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Project added')),
+      final current = _data;
+      final tempId = 'temp-${DateTime.now().microsecondsSinceEpoch}';
+      final optimisticProject = Project(
+        id: result.id ?? tempId,
+        name: result.name,
+        description: result.description,
+        progress: result.progress,
+        color: result.color,
+        weeklyBurndown: result.weeklyBurndown,
+      );
+      if (current != null) {
+        final updated = _AppData(
+          schedule: current.schedule,
+          habits: current.habits,
+          projects: [...current.projects, optimisticProject],
+          goals: current.goals,
         );
+        setState(() {
+          _data = updated;
+        });
       }
-      setState(() {
-        _future = _loadData();
-      });
+      try {
+        await _firestore.addProject(result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Project added')),
+          );
+        }
+      } catch (_) {
+        if (current != null) {
+          setState(() {
+            _data = current;
+          });
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not add project. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -301,23 +379,115 @@ class _HomeShellState extends State<HomeShell> {
       builder: (ctx) => _AddGoalSheet(),
     );
     if (result != null) {
-      await _firestore.addGoal(result);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Goal added')),
+      final current = _data;
+      final tempId = 'temp-${DateTime.now().microsecondsSinceEpoch}';
+      final optimisticGoal = Goal(
+        id: result.id ?? tempId,
+        name: result.name,
+        stat: result.stat,
+        progress: result.progress,
+        timeframe: result.timeframe,
+        color: result.color,
+        deadline: result.deadline,
+        createdAt: result.createdAt,
+      );
+      if (current != null) {
+        final updated = _AppData(
+          schedule: current.schedule,
+          habits: current.habits,
+          projects: current.projects,
+          goals: [...current.goals, optimisticGoal],
         );
+        setState(() {
+          _data = updated;
+        });
       }
-      setState(() {
-        _future = _loadData();
-      });
+      try {
+        await _firestore.addGoal(result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Goal added')),
+          );
+        }
+      } catch (_) {
+        if (current != null) {
+          setState(() {
+            _data = current;
+          });
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not add goal. Please try again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
     }
   }
 
   Future<void> _handleToggleTaskDone(String dayId, String taskId, bool isDone) async {
-    await _firestore.updateTaskDone(dayId: dayId, taskId: taskId, isDone: isDone);
+    final current = _data;
+    if (current == null) return;
+    final updatedSchedule = current.schedule.map((day) {
+      final id = _dayIdFromDate(day.date);
+      if (id != dayId) return day;
+      final updatedTasks = day.tasks.map((task) {
+        if (task.id != taskId) return task;
+        return _copyTask(task, isDone: isDone);
+      }).toList();
+      return DaySchedule(date: day.date, tasks: updatedTasks);
+    }).toList();
+    final updated = _AppData(
+      schedule: updatedSchedule,
+      habits: current.habits,
+      projects: current.projects,
+      goals: current.goals,
+    );
     setState(() {
-      _future = _loadData();
+      _data = updated;
     });
+    try {
+      await _firestore.updateTaskDone(dayId: dayId, taskId: taskId, isDone: isDone);
+    } catch (e) {
+      // Roll back if the network update fails so the UI stays consistent.
+      setState(() {
+        _data = current;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update task. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Task _copyTask(Task task, {bool? isDone}) {
+    return Task(
+      id: task.id,
+      habitId: task.habitId,
+      title: task.title,
+      subtitle: task.subtitle,
+      category: task.category,
+      color: task.color,
+      icon: task.icon,
+      isHabit: task.isHabit,
+      isDone: isDone ?? task.isDone,
+      isImportant: task.isImportant,
+      startDate: task.startDate,
+      start: task.start,
+      end: task.end,
+    );
+  }
+
+  String _dayIdFromDate(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _handleEditTask(String dayId, Task task) async {
@@ -350,9 +520,6 @@ class _HomeShellState extends State<HomeShell> {
         isImportant: result.isImportant,
       );
       await _firestore.updateTask(dayId, updated);
-      setState(() {
-        _future = _loadData();
-      });
     }
   }
 
@@ -372,14 +539,12 @@ class _HomeShellState extends State<HomeShell> {
     );
     if (confirm == true) {
       await _firestore.deleteTask(dayId, task.id!);
-      setState(() {
-        _future = _loadData();
-      });
     }
   }
 
   Future<void> _handleHabitTap(Habit habit, DateTime date) async {
     if (habit.id == null) return;
+    final currentData = _data;
     var counts = List<int>.from(
         habit.completionCounts.isNotEmpty ? habit.completionCounts : List<int>.filled(365, 0));
     if (counts.length < 365) {
@@ -397,10 +562,51 @@ class _HomeShellState extends State<HomeShell> {
     final current = counts[index];
     final next = current >= maxPerDay ? 0 : current + 1;
     counts[index] = next;
-    await _firestore.updateHabitCounts(habit.id!, counts);
-    setState(() {
-      _future = _loadData();
-    });
+
+    final updatedHabit = Habit(
+      id: habit.id,
+      name: habit.name,
+      caption: habit.caption,
+      color: habit.color,
+      icon: habit.icon,
+      completions: habit.completions,
+      recurrenceDays: habit.recurrenceDays,
+      timesPerDay: habit.timesPerDay,
+      completionCounts: counts,
+    );
+
+    if (currentData != null) {
+      final updatedHabits = currentData.habits
+          .map((h) => h.id == habit.id ? updatedHabit : h)
+          .toList();
+      final optimistic = _AppData(
+        schedule: currentData.schedule,
+        habits: updatedHabits,
+        projects: currentData.projects,
+        goals: currentData.goals,
+      );
+      setState(() {
+        _data = optimistic;
+      });
+    }
+
+    try {
+      await _firestore.updateHabitCounts(habit.id!, counts);
+    } catch (_) {
+      if (currentData != null) {
+        setState(() {
+          _data = currentData;
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not update habit. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showGoalsActions(BuildContext context) async {
@@ -1002,27 +1208,17 @@ const _iconOptions = <IconData>[
 ];
 
 const _colorOptions = <Color>[
-  Color(0xFF7EE6A1),
-  Color(0xFFB784FF),
-  Color(0xFFFF9F6E),
-  Color(0xFFE7E167),
-  Color(0xFF7AE1FF),
-  Color(0xFFFF7A8A),
-  Color(0xFF61E294),
-  Color(0xFF3A7AFE),
-  Color(0xFFEF5350),
-  Color(0xFF26C6DA),
-  Color(0xFF42A5F5),
-  Color(0xFFFFB74D),
-  Color(0xFF8D6E63),
-  Color(0xFFFFC107),
-  Color(0xFFA1887F),
-  Color(0xFF9C27B0),
-  Color(0xFF00BFA5),
-  Color(0xFF607D8B),
-  Color(0xFFCE93D8),
-  Color(0xFF80CBC4),
-  Color(0xFFD4E157),
+  Color(0xFFEFDF48),
+  Color(0xFFE87F21),
+  Color(0xFFD03E40),
+  Color(0xFFCD327D),
+  Color(0xFF6327E1),
+  Color(0xFF2263E3),
+  Color(0xFF27B4E0),
+  Color(0xFF27E086),
+  Color(0xFF129520),
+  Color(0xFF646464),
+
 ];
 
 const _taskIconOptions = <IconData>[
@@ -1058,7 +1254,7 @@ class _SegmentedNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final addBlue = Colors.blueAccent;
     return Container(
-      height: 52,
+      height: 55,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark ? addBlue.withOpacity(0.15) : Colors.white,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:async/async.dart';
 
 import '../models.dart';
 import '../sample_data.dart';
@@ -85,6 +86,57 @@ class FirestoreService {
     } catch (_) {
       return sampleGoals;
     }
+  }
+
+  Stream<List<DaySchedule>> streamSchedule() {
+    return _db.collectionGroup('tasks').snapshots().map((taskSnap) {
+      final byDay = <String, List<Task>>{};
+      for (final doc in taskSnap.docs) {
+        final dayId = doc.reference.parent.parent?.id;
+        if (dayId == null) continue;
+        final task = _taskFromMap(doc.data(), id: doc.id);
+        if (task == null) continue;
+        byDay.putIfAbsent(dayId, () => <Task>[]).add(task);
+      }
+      final days = byDay.entries.map((entry) {
+        final date = DateTime.tryParse(entry.key) ?? DateTime.now();
+        final tasks = [...entry.value];
+        tasks.sort((a, b) {
+          final aMinutes = a.start.hour * 60 + a.start.minute;
+          final bMinutes = b.start.hour * 60 + b.start.minute;
+          return aMinutes.compareTo(bMinutes);
+        });
+        return DaySchedule(date: date, tasks: tasks);
+      }).toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+      return days.isEmpty ? sampleSchedule : days;
+    }).handleError((_) => sampleSchedule);
+  }
+
+  Stream<List<Habit>> streamHabits() {
+    return _db.collection('habits').snapshots().map((snap) {
+      final habits = snap.docs
+          .map((d) => _habitFromMap({...d.data(), 'id': d.id}))
+          .whereType<Habit>()
+          .toList();
+      return habits.isEmpty ? sampleHabits : habits;
+    }).handleError((_) => sampleHabits);
+  }
+
+  Stream<List<Project>> streamProjects() {
+    return _db.collection('projects').snapshots().map((snap) {
+      final projects =
+          snap.docs.map((d) => _projectFromMap(d.data(), id: d.id)).whereType<Project>().toList();
+      return projects.isEmpty ? sampleProjects : projects;
+    }).handleError((_) => sampleProjects);
+  }
+
+  Stream<List<Goal>> streamGoals() {
+    return _db.collection('goals').snapshots().map((snap) {
+      final goals =
+          snap.docs.map((d) => _goalFromMap(d.data(), id: d.id)).whereType<Goal>().toList();
+      return goals.isEmpty ? sampleGoals : goals;
+    }).handleError((_) => sampleGoals);
   }
 
   // Placeholder for creating a task.

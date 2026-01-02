@@ -175,7 +175,7 @@ class _GoalCard extends StatelessWidget {
                         ? goal.progress
                         : tasks.where((t) => t.isDone).length / tasks.length;
                     final remainingLabel = _remainingLabel(goal);
-                    return _GoalProgressRing(
+                    return GoalProgressRing(
                       progress: progress,
                       color: goal.color,
                       size: ringSize,
@@ -203,8 +203,8 @@ class _GoalCard extends StatelessWidget {
   }
 }
 
-class _GoalProgressRing extends StatelessWidget {
-  const _GoalProgressRing({
+class GoalProgressRing extends StatelessWidget {
+  const GoalProgressRing({
     required this.progress,
     required this.color,
     required this.size,
@@ -235,7 +235,7 @@ class _GoalProgressRing extends StatelessWidget {
         children: [
           CustomPaint(
             size: Size.square(size),
-            painter: _RingPainter(
+            painter: GoalRingPainter(
               progress: progress.clamp(0.0, 1.0),
               color: color,
               strokeWidth: strokeWidth,
@@ -315,8 +315,8 @@ class _GoalProgressRing extends StatelessWidget {
   }
 }
 
-class _RingPainter extends CustomPainter {
-  _RingPainter({
+class GoalRingPainter extends CustomPainter {
+  GoalRingPainter({
     required this.progress,
     required this.color,
     required this.strokeWidth,
@@ -430,7 +430,7 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+  bool shouldRepaint(covariant GoalRingPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.color != color ||
         oldDelegate.strokeWidth != strokeWidth ||
