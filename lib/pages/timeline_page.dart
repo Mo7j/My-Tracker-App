@@ -1207,13 +1207,13 @@ class _DayChip extends StatelessWidget {
       clipper: _BookmarkClipper(),
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 8, 18, 8),
-        color: const Color(0xFFFFD54F),
+        color: Colors.blueAccent,
         child: Text(
           label,
           style: Theme.of(context)
               .textTheme
               .labelMedium
-              ?.copyWith(fontWeight: FontWeight.w800, color: Colors.black87),
+              ?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
         ),
       ),
     );
@@ -1293,98 +1293,109 @@ class _WeekDayTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final border = BorderRadius.circular(14);
-    return Card(
-      margin: EdgeInsets.zero,
-      color: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: border),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          shape: RoundedRectangleBorder(borderRadius: border),
-          collapsedShape: RoundedRectangleBorder(borderRadius: border),
-          initiallyExpanded: expanded,
-          backgroundColor: Colors.transparent,
-          collapsedBackgroundColor: Colors.transparent,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-          onExpansionChanged: (isOpen) {
-            if (isOpen) onExpand();
-          },
-          title: Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat.E().format(date),
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  Text(
-                    DateFormat.MMMd().format(date),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  ...tasks.take(5).map(
-                        (task) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: task.color,
-                              shape: BoxShape.circle,
-                            ),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: border,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: border,
+                onTap: onExpand,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            DateFormat.E().format(date),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.65),
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
-                        ),
+                          Text(
+                            DateFormat.MMMd().format(date),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                          ),
+                        ],
                       ),
-                  if (tasks.length > 5)
-                    Text(
-                      '+${tasks.length - 5}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                    ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '${tasks.length} left',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
-                        ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          children: tasks
-              .map(
-                (task) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: _TaskCard(
-                    task: task,
-                    isCompact: true,
-                    dayId: dayId,
-                    onToggleDone: onToggleDone,
-                    onHabitTap: onHabitTap,
-                    habits: habits,
-                    date: date,
-                    onEditTask: onEditTask,
-                    onDeleteTask: onDeleteTask,
+                      const Spacer(),
+                      Row(
+                        children: [
+                          ...tasks.take(5).map(
+                                (task) => Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: task.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          if (tasks.length > 5)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Text(
+                                '+${tasks.length - 5}',
+                                style: theme.textTheme.labelMedium
+                                    ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.65)),
+                              ),
+                            ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${tasks.length} left',
+                            style: theme.textTheme.labelMedium
+                                ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.65)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              )
-              .toList(),
+              ),
+            ),
+            if (expanded) ...[
+              const SizedBox(height: 10),
+              Column(
+                children: tasks
+                    .map(
+                      (task) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: _TaskCard(
+                          task: task,
+                          isCompact: true,
+                          dayId: dayId,
+                          onToggleDone: onToggleDone,
+                          onHabitTap: onHabitTap,
+                          habits: habits,
+                          date: date,
+                          onEditTask: onEditTask,
+                          onDeleteTask: onDeleteTask,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ],
         ),
       ),
     );

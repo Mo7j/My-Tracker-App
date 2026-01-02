@@ -138,12 +138,12 @@ class _HomeShellState extends State<HomeShell> {
                       onPressed: () => _handleAddHabit(context),
                       child: const Icon(Icons.add, size: 30),
                     )
-                  : _index == 2
-                      ? FloatingActionButton(
-                          onPressed: () => _showGoalsActions(context),
-                          child: const Icon(Icons.add, size: 30),
-                        )
-                  : null,
+          : _index == 2
+              ? FloatingActionButton(
+                  onPressed: () => _showGoalsActions(context),
+                  child: const Icon(Icons.add, size: 30),
+                )
+              : null,
           bottomNavigationBar: _SegmentedNavBar(
             index: _index,
             onChanged: (value) => setState(() => _index = value),
@@ -1252,12 +1252,16 @@ class _SegmentedNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final addBlue = Colors.blueAccent;
+    final addBlue = theme.colorScheme.primary;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      height: 55,
+      height: 80 + bottomInset,
+      padding: EdgeInsets.fromLTRB(10, 8, 10, 22 + bottomInset),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark ? addBlue.withOpacity(0.15) : Colors.white,
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surfaceVariant.withOpacity(0.35)
+            : theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: Row(
@@ -1306,17 +1310,7 @@ class _SegmentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    BorderRadius radius;
-    if (selected) {
-      radius = BorderRadius.only(
-        topLeft: const Radius.circular(18),
-        bottomLeft: Radius.circular(icon == Icons.timeline ? 0 : 18),
-        topRight: const Radius.circular(18),
-        bottomRight: Radius.circular(icon == Icons.track_changes ? 0 : 18),
-      );
-    } else {
-      radius = BorderRadius.zero;
-    }
+    final radius = BorderRadius.circular(14);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -1326,17 +1320,8 @@ class _SegmentItem extends StatelessWidget {
           height: double.infinity,
           margin: EdgeInsets.zero,
           decoration: BoxDecoration(
-            color: selected ? primary : Colors.transparent,
+            color: Colors.transparent,
             borderRadius: radius,
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: primary.withOpacity(0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : null,
           ),
           child: Center(
             child: Column(
@@ -1344,12 +1329,10 @@ class _SegmentItem extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  size: selected ? 30 : 26,
+                  size: selected ? 34 : 26,
                   color: selected
-                      ? Colors.white
-                      : (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                      ? primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
                 ),
               ],
             ),
