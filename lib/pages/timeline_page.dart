@@ -1444,7 +1444,7 @@ class _HabitRow extends StatelessWidget {
   }
 }
 
-class _HabitChip extends StatelessWidget {
+class _HabitChip extends StatefulWidget {
   const _HabitChip({required this.habit, required this.ratio, this.onTap});
 
   final Habit habit;
@@ -1452,73 +1452,134 @@ class _HabitChip extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_HabitChip> createState() => _HabitChipState();
+}
+
+class _HabitChipState extends State<_HabitChip> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(period: const Duration(milliseconds: 1500));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(14);
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
-        width: 46,
-        height: 46,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
-          color: habit.color.withOpacity(0.4),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: habit.color.withOpacity(0.50), width: 1.2),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CustomPaint(
-              painter: _BlockFillPainter(
-                color: habit.color,
-                ratio: ratio,
-                blockCount: habit.timesPerDay <= 0 ? 1 : habit.timesPerDay,
-              ),
-              size: const Size(double.infinity, double.infinity),
+          color: theme.cardColor,
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.35 : 0.08),
+              blurRadius: 5,
+              offset: const Offset(-3, 3),
             ),
-            Icon(habit.icon, color: Colors.white, size: 22),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final elapsedMs = _controller.lastElapsedDuration?.inMilliseconds ?? 0;
+              final phase = (elapsedMs / 1500.0) * 2 * math.pi;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    painter: _HabitFillPainter(
+                      color: widget.habit.color,
+                      ratio: widget.ratio,
+                      phase: phase,
+                    ),
+                    size: const Size(double.infinity, double.infinity),
+                  ),
+                  Icon(
+                    widget.habit.icon,
+                    color: theme.colorScheme.onSurface,
+                    size: 22,
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-class _BlockFillPainter extends CustomPainter {
-  _BlockFillPainter({required this.color, required this.ratio, required this.blockCount});
+class _HabitFillPainter extends CustomPainter {
+  _HabitFillPainter({required this.color, required this.ratio, required this.phase});
+
   final Color color;
   final double ratio;
-  final int blockCount;
+  final double phase;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fillRatio = ratio.clamp(0.0, 1.0);
-    if (fillRatio <= 0) return;
-    final blocks = blockCount.clamp(1, 6);
-    const double gap = 3;
-    const double inset = 3;
-    final usableHeight = size.height - inset * 2;
-    final blockHeight = (usableHeight - gap * (blocks - 1)) / blocks;
-    final blockWidth = size.width - inset * 2;
-    if (blockHeight <= 0 || blockWidth <= 0) return;
-    final paint = Paint()..color = color.withOpacity(0.55);
-    final totalFill = blocks * fillRatio;
-    for (int i = 0; i < blocks; i++) {
-      final fillForBlock = (totalFill - i).clamp(0.0, 1.0);
-      if (fillForBlock <= 0) break;
-      final bottom = size.height - inset - (i * (blockHeight + gap));
-      final top = bottom - (blockHeight * fillForBlock);
-      final rect = Rect.fromLTWH(inset, top, blockWidth, blockHeight * fillForBlock);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(5)),
-        paint,
-      );
+    final pct = ratio.clamp(0.0, 1.0);
+    if (pct <= 0) return;
+    final fillHeight = size.height * pct;
+    final baseY = size.height;
+    final topY = baseY - fillHeight;
+
+    Path buildWave(double phaseShift, double amp, double wavelength) {
+      final segments = (size.width / (wavelength * 0.6)).ceil() + 4;
+      final samples = <Offset>[];
+      for (int i = 0; i <= segments; i++) {
+        final x = i * wavelength;
+        final t = x / size.width;
+        final y = topY - amp * math.sin(phaseShift + t * 2 * math.pi);
+        samples.add(Offset(x.clamp(0.0, size.width), y));
+      }
+      final path = Path()..moveTo(0, baseY);
+      if (samples.isNotEmpty) {
+        path.lineTo(samples.first.dx, samples.first.dy);
+        for (int i = 0; i < samples.length - 1; i++) {
+          final p0 = samples[i];
+          final p1 = samples[i + 1];
+          final ctrl = Offset((p0.dx + p1.dx) / 2, (p0.dy + p1.dy) / 2);
+          path.quadraticBezierTo(p0.dx, p0.dy, ctrl.dx, ctrl.dy);
+        }
+        path.lineTo(samples.last.dx, samples.last.dy);
+      } else {
+        path.lineTo(size.width, topY);
+      }
+      path.lineTo(size.width, baseY);
+      path.close();
+      return path;
     }
+
+    // Back (lighter) wave, slower and softer.
+    final backWave = buildWave(phase * 0.65, 4.0, 20.0);
+    canvas.drawPath(backWave, Paint()..color = color.withOpacity(0.26));
+
+    // Front (darker) wave, slightly offset.
+    final frontWave = buildWave(phase * 1.05 + math.pi / 6, 5.0, 18.0);
+    canvas.drawPath(frontWave, Paint()..color = color.withOpacity(0.56));
   }
 
   @override
-  bool shouldRepaint(covariant _BlockFillPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.ratio != ratio ||
-        oldDelegate.blockCount != blockCount;
+  bool shouldRepaint(covariant _HabitFillPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.ratio != ratio || oldDelegate.phase != phase;
   }
 }
 
@@ -1539,7 +1600,7 @@ class _ShakeState extends State<_Shake> with TickerProviderStateMixin {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 100),
     );
   }
 
