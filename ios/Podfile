@@ -17,24 +17,22 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # Flutter’s required iOS settings
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
-  end
-
   # Flutter post-install hook (newer templates)
   flutter_post_install(installer) if defined?(flutter_post_install)
 
-  # Remove the bogus flag that clang mis-parses as -G
-  installer.pods_project.targets.each do |t|
-    t.source_build_phase.files.each do |f|
-      flags = f.settings && f.settings['COMPILER_FLAGS']
+  # Apply Flutter iOS build settings + sanitize bad flags safely
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    # Some targets are PBXAggregateTarget and do not have source_build_phase
+    next unless target.respond_to?(:source_build_phase)
+
+    target.source_build_phase.files.each do |file|
+      flags = file.settings && file.settings['COMPILER_FLAGS']
       next unless flags.is_a?(String)
 
       new_flags = flags.gsub(' -GCC_WARN_INHIBIT_ALL_WARNINGS', '')
-      if new_flags != flags
-        f.settings['COMPILER_FLAGS'] = new_flags
-      end
+      file.settings['COMPILER_FLAGS'] = new_flags if new_flags != flags
     end
   end
 end

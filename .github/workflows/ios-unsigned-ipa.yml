@@ -30,18 +30,13 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: CocoaPods repo update
-        working-directory: ios
-        run: pod repo update
-
-      # Move this BEFORE pod install so env flags can't poison pod builds.
       - name: Sanitize compiler env flags
         run: |
           unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
           echo "After unset:"
           env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
 
-      - name: Clean CocoaPods (safe to run; ignores errors)
+      - name: Clean CocoaPods
         working-directory: ios
         run: |
           pod deintegrate || true
@@ -51,7 +46,6 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      # Optional but useful: keep it after pods are installed (so it can inspect Pods too)
       - name: Debug where -G comes from
         run: |
           echo "Searching repo for ' -G'..."
