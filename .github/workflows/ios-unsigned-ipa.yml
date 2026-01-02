@@ -16,9 +16,9 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.3'   # explicit -> avoids channel resolution issues
+          flutter-version: '3.35.3'
           channel: stable
-          architecture: x64           # avoid arm64 lookup glitches
+          architecture: x64
           cache: true
 
       - name: Flutter doctor / precache
@@ -30,7 +30,6 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      # Make sure CocoaPods is in a good state and uses the new Podfile
       - name: CocoaPods repo update
         working-directory: ios
         run: pod repo update
@@ -44,6 +43,21 @@ jobs:
       - name: Install CocoaPods dependencies
         working-directory: ios
         run: pod install --repo-update
+
+      # ✅ ADD THESE TWO STEPS (do not remove anything else)
+      - name: Debug where -G comes from
+        run: |
+          echo "Searching ios/ for -G..."
+          grep -R --line-number " -G" ios || true
+
+          echo "Env flags:"
+          env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
+
+      - name: Sanitize compiler env flags
+        run: |
+          unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+          echo "After unset:"
+          env | egrep "CFLAGS|CPPFLAGS|CXXFLAGS|LDFLAGS" || true
 
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
@@ -60,5 +74,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tracker-unsigned-ipa
-          path: build/ios/iphoneos/tracker-unsigned.ipa   # <- fixed path
+          path: build/ios/iphoneos/tracker-unsigned.ipa
           if-no-files-found: error
