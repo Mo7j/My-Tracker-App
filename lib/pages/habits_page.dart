@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 import '../models.dart';
 
@@ -301,24 +302,53 @@ class _StreakBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).textTheme.labelLarge;
+    final textStyle = base?.copyWith(
+          fontWeight: FontWeight.w900,
+          color: Theme.of(context).brightness == Brightness.dark ? const Color.fromARGB(255, 239, 5, 5) : const Color.fromARGB(255, 224, 10, 10),
+          fontSize: (base?.fontSize ?? 14) + 2,
+
+        ) ??
+        const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: Colors.black,
+        );
+    if (streak <= 0) return const SizedBox.shrink();
+
+    final size = streak == 1
+        ? 35.0
+        : streak == 2
+            ? 40.0
+            : 45.0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Text(
-        '$streak 🔥',
-        style: base?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black,
-              fontSize: (base.fontSize ?? 14) + 4,
-            ) ??
-            const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 0),
+            child: Text('$streak', style: textStyle),
+          ),
+          const SizedBox(width: 0),
+          SizedBox(
+            height: size,
+            width: size,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Lottie.asset(
+                'assets/lottie/Fire.json',
+                repeat: true,
+                animate: true,
+                fit: BoxFit.contain,
+              ),
             ),
+          ),
+        ],
       ),
     );
+
   }
 }
 
@@ -331,4 +361,3 @@ List<int> _normalizeCounts(List<int> counts) {
     ...List<int>.filled(365 - counts.length, 0),
   ];
 }
-

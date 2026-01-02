@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 ThemeData buildAppTheme({bool dark = true}) {
+  final overlayClear = MaterialStateProperty.resolveWith<Color?>(
+    (states) => states.contains(MaterialState.hovered) || states.contains(MaterialState.focused) || states.contains(MaterialState.pressed)
+        ? Colors.transparent
+        : null,
+  );
+
   if (dark) {
     final base = ThemeData.dark(useMaterial3: true);
     return base.copyWith(
@@ -31,6 +37,18 @@ ThemeData buildAppTheme({bool dark = true}) {
         backgroundColor: Color(0xFF3A7AFE),
         foregroundColor: Colors.white,
         elevation: 2,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
       ),
     );
   } else {
@@ -63,6 +81,18 @@ ThemeData buildAppTheme({bool dark = true}) {
         backgroundColor: Color(0xFF3A7AFE),
         foregroundColor: Colors.white,
         elevation: 2,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(overlayColor: overlayClear),
       ),
     );
   }

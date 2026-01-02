@@ -1343,6 +1343,9 @@ class _WeekDayTile extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: border,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                hoverColor: Colors.transparent,
                 onTap: onToggleExpanded,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
