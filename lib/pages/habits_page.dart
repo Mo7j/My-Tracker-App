@@ -173,6 +173,7 @@ class _HabitCard extends StatelessWidget {
                   _normalizeCounts(habit.completionCounts),
                   habit.timesPerDay <= 0 ? 1 : habit.timesPerDay,
                 ),
+                color: habit.color,
               ),
             ],
           ),
@@ -296,8 +297,9 @@ class _Pill extends StatelessWidget {
 }
 
 class _StreakBadge extends StatelessWidget {
-  const _StreakBadge({required this.streak});
+  const _StreakBadge({required this.streak, required this.color});
   final int streak;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -316,10 +318,15 @@ class _StreakBadge extends StatelessWidget {
     if (streak <= 0) return const SizedBox.shrink();
 
     final size = streak == 1
-        ? 35.0
+        ? 38.0
         : streak == 2
-            ? 40.0
-            : 45.0;
+            ? 44.0
+            : 50.0;
+    final fontSize = streak == 1
+        ? (textStyle.fontSize ?? 18) - 5
+        : streak == 2
+            ? (textStyle.fontSize ?? 18) - 3
+            : textStyle.fontSize ?? 18;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
@@ -327,24 +334,47 @@ class _StreakBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 0),
-            child: Text('$streak', style: textStyle),
-          ),
-          const SizedBox(width: 0),
           SizedBox(
             height: size,
             width: size,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Lottie.asset(
-                'assets/lottie/Fire.json',
-                repeat: true,
-                animate: true,
-                fit: BoxFit.contain,
+              padding: const EdgeInsets.only(bottom: 10, right: 1),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      final mid = Color.lerp(color, Colors.white, 0.35) ?? color;
+                      final deep = Color.lerp(color, Colors.black, 0.18) ?? color;
+                      return LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [mid, color, deep],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.srcIn,
+                    child: Lottie.asset(
+                      'assets/lottie/Fire.json',
+                      repeat: true,
+                      animate: true,
+                      fit: BoxFit.contain,
+                ),
               ),
-            ),
+              Transform.translate(
+                offset: const Offset(0, 6),
+                child: Text(
+                  '$streak',
+                  style: textStyle.copyWith(
+                    fontSize: fontSize,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
         ],
       ),
     );
