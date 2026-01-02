@@ -1,6 +1,7 @@
 ﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
 
 import '../models.dart';
 import '../utils.dart';
@@ -757,7 +758,7 @@ class _HeaderContent extends StatelessWidget {
   }
 }
 
-class _HeaderCompactRow extends StatelessWidget {
+class _HeaderCompactRow extends StatefulWidget {
   const _HeaderCompactRow({
     required this.selectedDate,
     required this.subtitle,
@@ -775,19 +776,117 @@ class _HeaderCompactRow extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   @override
+  State<_HeaderCompactRow> createState() => _HeaderCompactRowState();
+}
+
+class _HeaderCompactRowState extends State<_HeaderCompactRow> with SingleTickerProviderStateMixin {
+  late final AnimationController _lottieCtrl;
+  Duration _lottieDuration = Duration.zero;
+  bool _toggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lottieCtrl = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _lottieCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeaderCompactRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isDark != widget.isDark) {
+      _snapToTheme();
+    }
+  }
+
+  void _snapToTheme() {
+    return;
+  }
+
+  Future<void> _handleThemeTap() async {
+    if (_toggling) return;
+    if (_lottieDuration == Duration.zero) {
+      widget.onToggleTheme();
+      return;
+    }
+
+    setState(() => _toggling = true);
+
+    final isCurrentlyLight = _lottieCtrl.value < 0.25;
+    final target = isCurrentlyLight ? 0.5 : 1.0;
+
+    try {
+      await _lottieCtrl.animateTo(
+        target,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+      _lottieCtrl.stop();
+
+      // Now flip the actual app theme AFTER the animation
+      widget.onToggleTheme();
+
+      // Optional: after toggling theme, reset to the "start pose" of that state
+      // so the next tap plays the other half consistently:
+      _lottieCtrl.value = isCurrentlyLight ? 0.5 : 0.0;
+    } finally {
+      if (mounted) setState(() => _toggling = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final toggleHeight = 40.0; // same visual height as ChoiceChip
+    final toggleWidth = 60.0; // same visual height as ChoiceChip
+
     return Row(
       children: [
         _ViewToggle(
           options: const ['Today', 'Week', 'Month'],
-          value: view,
-          onChanged: onViewChanged,
+          value: widget.view,
+          onChanged: widget.onViewChanged,
         ),
         const Spacer(),
-        IconButton(
-          onPressed: onToggleTheme,
-          tooltip: 'Toggle theme',
-          icon: Text(isDark ? '☀️' : '🌙', style: const TextStyle(fontSize: 23)),
+
+        SizedBox(
+          height: toggleHeight,
+          width: toggleWidth,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A7AFE).withOpacity(0.0),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: IconButton(
+              onPressed: _toggling ? null : _handleThemeTap,
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints.tightFor(
+                height: toggleHeight,
+                width: toggleHeight, // change to 48 if you want it wider
+              ),
+              tooltip: 'Toggle theme',
+              icon: SizedBox(
+                width: toggleHeight + 55,
+                height: toggleHeight + 10,
+                child: Lottie.asset(
+                  'assets/lottie/Toggle-dark-mode.json',
+                  controller: _lottieCtrl,
+                  onLoaded: (composition) {
+                    _lottieDuration = composition.duration;
+                    _lottieCtrl.duration = composition.duration;
+                    _lottieCtrl.value = 0.0;
+                  },
+                  repeat: false,
+                  animate: false,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
