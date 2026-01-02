@@ -53,21 +53,24 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      - name: Build iOS app via xcodebuild (unsigned)
+            - name: Build iOS app via xcodebuild (unsigned)
         working-directory: ios
         run: |
           set -e
-          # Ensure Generated.xcconfig exists
-          flutter --version
+
+          # From repo root: fetch deps
           cd ..
           flutter pub get
-          flutter build ios --config-only
+
+          # IMPORTANT: generate ios/Flutter/Generated.xcconfig WITHOUT device signing
+          flutter build ios --config-only --simulator
+
           cd ios
 
-          # Install pods (in case not already)
+          # Pods
           pod install --repo-update
 
-          # Build the Runner app without signing
+          # Build the Runner app WITHOUT signing
           xcodebuild \
             -workspace Runner.xcworkspace \
             -scheme Runner \
