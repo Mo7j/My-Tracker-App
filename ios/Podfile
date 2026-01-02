@@ -21,3 +21,21 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
   end
 end
+
+post_install do |installer|
+  # Flutter default post_install (keep if you already have it)
+  flutter_post_install(installer) if defined?(flutter_post_install)
+
+  # Remove the bogus flag that clang mis-parses as -G
+  installer.pods_project.targets.each do |t|
+    t.source_build_phase.files.each do |f|
+      flags = f.settings && f.settings['COMPILER_FLAGS']
+      next unless flags.is_a?(String)
+
+      new_flags = flags.gsub(' -GCC_WARN_INHIBIT_ALL_WARNINGS', '')
+      if new_flags != flags
+        f.settings['COMPILER_FLAGS'] = new_flags
+      end
+    end
+  end
+end
