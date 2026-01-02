@@ -53,7 +53,7 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-            - name: Build iOS app via xcodebuild (unsigned)
+      - name: Build iOS app via xcodebuild (unsigned)
         working-directory: ios
         run: |
           set -e
