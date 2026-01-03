@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
+import '../shared_colors.dart';
 import 'goals_projects_page.dart' show GoalProgressRing;
 
 class GoalDetailPage extends StatefulWidget {
@@ -19,30 +20,6 @@ class GoalDetailPage extends StatefulWidget {
 }
 
 class _GoalDetailPageState extends State<GoalDetailPage> {
-  static const _colorOptions = [
-    Color(0xFF7EE6A1),
-    Color(0xFFB784FF),
-    Color(0xFFFF9F6E),
-    Color(0xFFE7E167),
-    Color(0xFF7AE1FF),
-    Color(0xFFFF7A8A),
-    Color(0xFF61E294),
-    Color(0xFF3A7AFE),
-    Color(0xFFEF5350),
-    Color(0xFF26C6DA),
-    Color(0xFF42A5F5),
-    Color(0xFFFFB74D),
-    Color(0xFF8D6E63),
-    Color(0xFFFFC107),
-    Color(0xFFA1887F),
-    Color(0xFF9C27B0),
-    Color(0xFF00BFA5),
-    Color(0xFF607D8B),
-    Color(0xFFCE93D8),
-    Color(0xFF80CBC4),
-    Color(0xFFD4E157),
-  ];
-
   late Goal _current;
   bool _changed = false;
   List<Task> _tasks = const [];
@@ -280,13 +257,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         _tasks = previous;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not update task. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+        }
     }
   }
 
@@ -401,7 +372,10 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
       enableDrag: true,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditGoalSheet(goal: goal),
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: _EditGoalSheet(goal: goal),
+      ),
     );
 
     if (updated != null) {
@@ -419,13 +393,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
           setState(() {
             _current = previous;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Could not save goal. Please try again.'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+          }
       }
     }
   }
@@ -559,18 +527,6 @@ class _EditGoalSheet extends StatefulWidget {
 }
 
 class _EditGoalSheetState extends State<_EditGoalSheet> {
-  static const _colorOptions = <Color>[
-    Color(0xFFEFDF48),
-    Color(0xFFE87F21),
-    Color(0xFFD03E40),
-    Color(0xFFCD327D),
-    Color(0xFF6327E1),
-    Color(0xFF2263E3),
-    Color(0xFF27B4E0),
-    Color(0xFF27E086),
-    Color(0xFF129520),
-    Color(0xFF646464),
-  ];
   late final TextEditingController _nameCtrl;
   DateTime? _deadline;
   late Color _selected;
@@ -594,9 +550,9 @@ class _EditGoalSheetState extends State<_EditGoalSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.9,
-      minChildSize: 0.7,
-      maxChildSize: 0.95,
+      initialChildSize: 0.8,
+      minChildSize: 0.8,
+      maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
           decoration: BoxDecoration(
@@ -657,7 +613,7 @@ class _EditGoalSheetState extends State<_EditGoalSheet> {
               ),
               const SizedBox(height: 8),
               _ColorPicker(
-                colors: _colorOptions,
+                colors: kColorOptions,
                 selected: _selected,
                 backgroundColor: Theme.of(context).dialogBackgroundColor,
                 onPick: (c) => setState(() => _selected = c),
@@ -698,9 +654,6 @@ class _EditGoalSheetState extends State<_EditGoalSheet> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a goal name')),
-      );
       return;
     }
     Navigator.pop(

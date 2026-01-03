@@ -68,38 +68,44 @@ class HabitsPage extends StatelessWidget {
     if (onEditHabit == null && onDeleteHabit == null) return;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      isDismissible: true,
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? Theme.of(context).dialogBackgroundColor
           : Colors.white,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
-              title: Text('Edit habit', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
-              onTap: () {
-                Navigator.pop(ctx);
-                onEditHabit?.call(habit);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.redAccent),
-              title: Text(
-                'Delete habit',
-                style: TextStyle(
-                  color: Theme.of(ctx).brightness == Brightness.dark
-                      ? Colors.redAccent
-                      : Colors.black,
-                  fontWeight: FontWeight.w600,
-                ),
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
+                title:
+                    Text('Edit habit', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onEditHabit?.call(habit);
+                },
               ),
-              onTap: () {
-                Navigator.pop(ctx);
-                onDeleteHabit?.call(habit);
-              },
-            ),
-          ],
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.redAccent),
+                title: Text(
+                  'Delete habit',
+                  style: TextStyle(
+                    color: Theme.of(ctx).brightness == Brightness.dark
+                        ? Colors.redAccent
+                        : Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDeleteHabit?.call(habit);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

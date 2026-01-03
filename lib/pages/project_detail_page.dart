@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
+import '../shared_colors.dart';
 import '../utils.dart';
 
 class ProjectDetailPage extends StatefulWidget {
@@ -289,13 +290,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         _tasks = previous;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not update task. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+        }
     }
   }
 
@@ -402,7 +397,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
       enableDrag: true,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditProjectSheet(project: project),
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: _EditProjectSheet(project: project),
+      ),
     );
 
     if (updated != null) {
@@ -420,13 +418,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
           setState(() {
             _current = previous;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Could not save project. Please try again.'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+          }
       }
     }
   }
@@ -435,6 +427,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
     if (project.id == null) return;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      isDismissible: true,
       useSafeArea: true,
       backgroundColor: Theme.of(context).dialogBackgroundColor,
       shape: const RoundedRectangleBorder(
@@ -444,33 +438,37 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         final handleColor =
             Theme.of(ctx).brightness == Brightness.dark ? Colors.white24 : Colors.black26;
 
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: handleColor,
-                  borderRadius: BorderRadius.circular(99),
+        return FractionallySizedBox(
+          heightFactor: 0.8,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: handleColor,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.redAccent),
-                title: const Text('Delete project', style: TextStyle(color: Colors.redAccent)),
-                subtitle: Text('Remove "${project.name}" and its tasks?'),
-                onTap: () => Navigator.pop(ctx, true),
-              ),
-              ListTile(
-                leading: Icon(Icons.close,
-                    color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7)),
-                title: Text('Cancel', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
-                onTap: () => Navigator.pop(ctx, false),
-              ),
-            ],
+                const SizedBox(height: 10),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.redAccent),
+                  title: const Text('Delete project', style: TextStyle(color: Colors.redAccent)),
+                  subtitle: Text('Remove "${project.name}" and its tasks?'),
+                  onTap: () => Navigator.pop(ctx, true),
+                ),
+                ListTile(
+                  leading: Icon(Icons.close,
+                      color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7)),
+                  title:
+                      Text('Cancel', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
+                  onTap: () => Navigator.pop(ctx, false),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -567,18 +565,7 @@ class _EditProjectSheet extends StatefulWidget {
 }
 
 class _EditProjectSheetState extends State<_EditProjectSheet> {
-  static const _colorOptions = <Color>[
-    Color(0xFFEFDF48),
-    Color(0xFFE87F21),
-    Color(0xFFD03E40),
-    Color(0xFFCD327D),
-    Color(0xFF6327E1),
-    Color(0xFF2263E3),
-    Color(0xFF27B4E0),
-    Color(0xFF27E086),
-    Color(0xFF129520),
-    Color(0xFF646464),
-  ];
+  
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   late Color _selected;
@@ -603,9 +590,9 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.9,
-      minChildSize: 0.7,
-      maxChildSize: 0.95,
+      initialChildSize: 0.8,
+      minChildSize: 0.8,
+      maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
           decoration: BoxDecoration(
@@ -657,7 +644,7 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
               ),
               const SizedBox(height: 8),
               _ColorPicker(
-                colors: _colorOptions,
+                colors: kColorOptions,
                 selected: _selected,
                 backgroundColor: Theme.of(context).dialogBackgroundColor,
                 onPick: (c) => setState(() => _selected = c),
@@ -684,9 +671,6 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a project name')),
-      );
       return;
     }
     Navigator.pop(

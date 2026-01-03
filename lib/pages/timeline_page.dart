@@ -202,9 +202,28 @@ class _TimelinePageState extends State<TimelinePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Center(
-                    child: Text(
-                      'No tasks yet',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 300,
+                          height: 300,
+                          child: Transform.translate(
+                            offset: const Offset(0, 24),
+                            child: Lottie.asset(
+                              'assets/lottie/Meditating-Fox.json',
+                              repeat: true,
+                              animate: true,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No tasks yet',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1148,12 +1167,47 @@ class _TaskCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      task.isImportant ? '${task.title}   ðŸš©' : task.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                    if (task.isImportant)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              task.title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
                           ),
-                    ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: isCompact ? 45 : 75,
+                            height: isCompact ? 45 : 75,
+                            child: Transform.translate(
+                              offset: const Offset(0, 10),
+                              child: Lottie.asset(
+                                'assets/lottie/Alert.json',
+                                repeat: true,
+                                animate: true,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.flag,
+                                  size: isCompact ? 22 : 24,
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        task.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
                     const SizedBox(height: 2),
                     Text(
                       task.subtitle,
@@ -1254,22 +1308,28 @@ class _TaskCard extends StatelessWidget {
     if (task.isHabit || dayId == null || task.id == null) return;
     final action = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
+      isDismissible: true,
       backgroundColor: Theme.of(context).dialogBackgroundColor,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
-              title: Text('Edit task', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
-              onTap: () => Navigator.pop(ctx, 'edit'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.redAccent),
-              title: const Text('Delete task', style: TextStyle(color: Colors.redAccent)),
-              onTap: () => Navigator.pop(ctx, 'delete'),
-            ),
-          ],
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.edit, color: Theme.of(ctx).colorScheme.onSurface),
+                title:
+                    Text('Edit task', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
+                onTap: () => Navigator.pop(ctx, 'edit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.redAccent),
+                title: const Text('Delete task', style: TextStyle(color: Colors.redAccent)),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
         ),
       ),
     );

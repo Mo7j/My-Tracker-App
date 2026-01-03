@@ -12,6 +12,9 @@ import 'pages/goal_detail_page.dart';
 import 'pages/project_detail_page.dart';
 import 'pages/goals_projects_page.dart';
 import 'pages/timeline_page.dart';
+import 'project_goal_sheet.dart';
+import 'project_goal_result.dart';
+import 'shared_colors.dart';
 import 'services/firestore_service.dart';
 
 Future<void> main() async {
@@ -131,17 +134,17 @@ class _HomeShellState extends State<HomeShell> {
           floatingActionButton: _index == 0
               ? FloatingActionButton(
                   onPressed: () => _handleAddTask(context),
-                  child: const Icon(Icons.add, size: 30),
+                  child: const Icon(Icons.add, size: 35),
                 )
               : _index == 1
                   ? FloatingActionButton(
                       onPressed: () => _handleAddHabit(context),
-                      child: const Icon(Icons.add, size: 30),
+                      child: const Icon(Icons.add, size: 35),
                     )
           : _index == 2
               ? FloatingActionButton(
                   onPressed: () => _showGoalsActions(context),
-                  child: const Icon(Icons.add, size: 30),
+                  child: const Icon(Icons.add, size: 35),
                 )
               : null,
           bottomNavigationBar: _SegmentedNavBar(
@@ -160,18 +163,18 @@ class _HomeShellState extends State<HomeShell> {
       enableDrag: true,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddTaskSheet(
-        initialDate: _timelineDate,
-        expand: true,
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.9,
+        child: _AddTaskSheet(
+          initialDate: _timelineDate,
+          expand: true,
+        ),
       ),
     );
     if (result != null) {
       await _firestore.addTask(result, date: result.startDate);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task added')),
-        );
-      }
+        }
     }
   }
 
@@ -247,16 +250,17 @@ class _HomeShellState extends State<HomeShell> {
     final result = await showModalBottomSheet<Habit>(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const _AddHabitSheet(expand: true),
+      builder: (ctx) => const FractionallySizedBox(
+        heightFactor: 0.9,
+        child: _AddHabitSheet(expand: true),
+      ),
     );
     if (result != null) {
       await _firestore.addHabit(result);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Habit added')),
-        );
-      }
+        }
     }
   }
 
@@ -264,16 +268,17 @@ class _HomeShellState extends State<HomeShell> {
     final updated = await showModalBottomSheet<Habit>(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddHabitSheet(initialHabit: habit, expand: true),
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.9,
+        child: _AddHabitSheet(initialHabit: habit, expand: true),
+      ),
     );
     if (updated != null) {
       await _firestore.updateHabit(updated);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Habit updated')),
-        );
-      }
+        }
     }
   }
 
@@ -317,10 +322,13 @@ class _HomeShellState extends State<HomeShell> {
     final result = await showModalBottomSheet<Project>(
       context: context,
       isScrollControlled: true,
-      enableDrag: true,
       isDismissible: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddProjectSheet(),
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.5,
+        child: _AddProjectSheet(),
+      ),
     );
     if (result != null) {
       final current = _data;
@@ -347,10 +355,7 @@ class _HomeShellState extends State<HomeShell> {
       try {
         await _firestore.addProject(result);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Project added')),
-          );
-        }
+          }
       } catch (_) {
         if (current != null) {
           setState(() {
@@ -358,13 +363,7 @@ class _HomeShellState extends State<HomeShell> {
           });
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Could not add project. Please try again.'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+          }
       }
     }
   }
@@ -376,7 +375,10 @@ class _HomeShellState extends State<HomeShell> {
       enableDrag: true,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddGoalSheet(),
+      builder: (ctx) => const FractionallySizedBox(
+        heightFactor: 0.8,
+        child: _AddGoalSheet(),
+      ),
     );
     if (result != null) {
       final current = _data;
@@ -405,10 +407,7 @@ class _HomeShellState extends State<HomeShell> {
       try {
         await _firestore.addGoal(result);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Goal added')),
-          );
-        }
+          }
       } catch (_) {
         if (current != null) {
           setState(() {
@@ -416,13 +415,7 @@ class _HomeShellState extends State<HomeShell> {
           });
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Could not add goal. Please try again.'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+          }
       }
     }
   }
@@ -456,13 +449,7 @@ class _HomeShellState extends State<HomeShell> {
         _data = current;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not update task. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+        }
     }
   }
 
@@ -497,10 +484,13 @@ class _HomeShellState extends State<HomeShell> {
       enableDrag: true,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddTaskSheet(
-        initialDate: task.startDate,
-        initialTask: task,
-        expand: true,
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.9,
+        child: _AddTaskSheet(
+          initialDate: task.startDate,
+          initialTask: task,
+          expand: true,
+        ),
       ),
     );
     if (result != null) {
@@ -599,57 +589,27 @@ class _HomeShellState extends State<HomeShell> {
         });
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not update habit. Please try again.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+        }
     }
   }
 
   Future<void> _showGoalsActions(BuildContext context) async {
-    final action = await showModalBottomSheet<String>(
+    final result = await showModalBottomSheet<ProjectGoalResult>(
       context: context,
-      backgroundColor:
-          Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121620) : Colors.white,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Text('🚀', style: TextStyle(fontSize: 20)),
-              title: Text(
-                'Add project',
-                style: TextStyle(
-                  color: Theme.of(ctx).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-              ),
-              onTap: () => Navigator.pop(ctx, 'project'),
-            ),
-            ListTile(
-              leading: const Text('🎯', style: TextStyle(fontSize: 20)),
-              title: Text(
-                'Add goal',
-                style: TextStyle(
-                  color: Theme.of(ctx).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-              ),
-              onTap: () => Navigator.pop(ctx, 'goal'),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      isDismissible: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const FractionallySizedBox(
+        heightFactor: 0.6,
+        child: ProjectGoalSheet(),
       ),
     );
-    if (action == 'project') {
-      await _handleAddProject(context);
-    } else if (action == 'goal') {
-      await _handleAddGoal(context);
+
+    if (result == null) return;
+    if (result.project != null) {
+      await _firestore.addProject(result.project!);
+    } else if (result.goal != null) {
+      await _firestore.addGoal(result.goal!);
     }
   }
 }
@@ -724,9 +684,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: widget.expand ? 0.95 : 0.6,
-      minChildSize: widget.expand ? 0.95 : 0.4,
-      maxChildSize: 0.97,
+      initialChildSize: 0.8,
+      minChildSize: 0.8,
+      maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
           decoration: BoxDecoration(
@@ -833,7 +793,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _colorOptions
+                children: kColorOptions
                     .map(
                       (color) => GestureDetector(
                         onTap: () => setState(() => _color = color),
@@ -880,9 +840,6 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
 
   void _submit() {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a title')),
-      );
       return;
     }
     final endMinutes = _end.hour * 60 + _end.minute;
@@ -978,9 +935,9 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final isEditing = widget.initialHabit != null;
-    final initialSize = widget.expand ? 0.95 : 0.45;
-    final minSize = widget.expand ? 0.9 : 0.35;
-    final maxSize = widget.expand ? 0.97 : 0.75;
+    const initialSize = 0.8;
+    const minSize = 0.8;
+    const maxSize = 0.9;
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: initialSize,
@@ -1122,7 +1079,7 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _colorOptions
+                children: kColorOptions
                     .map(
                       (color) => GestureDetector(
                         onTap: () => setState(() => _selectedColor = color),
@@ -1167,9 +1124,6 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a habit name')),
-      );
       return;
     }
     final habit = Habit(
@@ -1187,62 +1141,6 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
   }
 }
 
-const _iconOptions = <IconData>[
-  Icons.self_improvement,
-  Icons.fitness_center,
-  Icons.restaurant,
-  Icons.menu_book,
-  Icons.music_note,
-  Icons.timer,
-  Icons.nightlight_round,
-  Icons.spa,
-  Icons.directions_run,
-  Icons.local_florist,
-  Icons.water_drop,
-  Icons.piano,
-  Icons.pets,
-  Icons.brush,
-  Icons.bookmark_added,
-  Icons.emoji_nature,
-  Icons.emoji_people,
-];
-
-const _colorOptions = <Color>[
-  Color(0xFFEFDF48),
-  Color(0xFFE87F21),
-  Color(0xFFD03E40),
-  Color(0xFFCD327D),
-  Color(0xFF6327E1),
-  Color(0xFF2263E3),
-  Color(0xFF27B4E0),
-  Color(0xFF27E086),
-  Color(0xFF129520),
-  Color(0xFF646464),
-
-];
-
-const _taskIconOptions = <IconData>[
-  Icons.event,
-  Icons.work,
-  Icons.school,
-  Icons.fitness_center,
-  Icons.timer,
-  Icons.star,
-  Icons.book,
-  Icons.alarm,
-  Icons.laptop_mac,
-  Icons.restaurant,
-  Icons.flight_takeoff,
-  Icons.meeting_room,
-  Icons.directions_run,
-  Icons.music_note,
-  Icons.brush,
-  Icons.shopping_bag,
-  Icons.nightlight_round,
-  Icons.self_improvement,
-  Icons.edit_calendar,
-];
-
 class _SegmentedNavBar extends StatelessWidget {
   const _SegmentedNavBar({required this.index, required this.onChanged});
 
@@ -1255,8 +1153,8 @@ class _SegmentedNavBar extends StatelessWidget {
     final addBlue = theme.colorScheme.primary;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      height: 80 + bottomInset,
-      padding: EdgeInsets.fromLTRB(10, 8, 10, 22 + bottomInset),
+      height: 75 + bottomInset,
+      padding: EdgeInsets.fromLTRB(10, 8, 10, 15 + bottomInset),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
@@ -1365,9 +1263,9 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.95,
-      minChildSize: 0.95,
-      maxChildSize: 0.97,
+      initialChildSize: 0.8,
+      minChildSize: 0.8,
+      maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
           decoration: BoxDecoration(
@@ -1420,7 +1318,7 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _colorOptions
+                children: kColorOptions
                     .map(
                       (color) => GestureDetector(
                         onTap: () => setState(() => _projectColor = color),
@@ -1442,11 +1340,11 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1464,9 +1362,6 @@ class _AddProjectSheetState extends State<_AddProjectSheet> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a project name')),
-      );
       return;
     }
     final project = Project(
@@ -1503,9 +1398,9 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.95,
-      minChildSize: 0.95,
-      maxChildSize: 0.97,
+      initialChildSize: 0.8,
+      minChildSize: 0.8,
+      maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
           decoration: BoxDecoration(
@@ -1558,7 +1453,7 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _colorOptions
+                children: kColorOptions
                     .map(
                       (color) => GestureDetector(
                         onTap: () => setState(() => _goalColor = color),
@@ -1583,7 +1478,7 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3A7AFE),
@@ -1605,9 +1500,6 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a goal name')),
-      );
       return;
     }
     final goal = Goal(
@@ -1721,3 +1613,46 @@ class _PickerButton extends StatelessWidget {
     );
   }
 }
+
+
+const _iconOptions = <IconData>[
+  Icons.self_improvement,
+  Icons.fitness_center,
+  Icons.restaurant,
+  Icons.menu_book,
+  //Icons.music_note,
+  //Icons.timer,
+  //Icons.nightlight_round,
+  //Icons.spa,
+  //Icons.directions_run,
+  //Icons.local_florist,
+  //Icons.water_drop,
+  //Icons.piano,
+  //Icons.pets,
+  //Icons.brush,
+  //Icons.bookmark_added,
+  //Icons.emoji_nature,
+  //Icons.emoji_people,
+];
+
+const _taskIconOptions = <IconData>[
+  Icons.event,
+  Icons.work,
+  Icons.school,
+  Icons.fitness_center,
+  Icons.timer,
+  Icons.star,
+  //Icons.book,
+  //Icons.alarm,
+  //Icons.laptop_mac,
+  //Icons.restaurant,
+  //Icons.flight_takeoff,
+  //Icons.meeting_room,
+  //Icons.directions_run,
+  //Icons.music_note,
+  //Icons.brush,
+  //Icons.shopping_bag,
+  //Icons.nightlight_round,
+  //Icons.self_improvement,
+  //Icons.edit_calendar,
+];
