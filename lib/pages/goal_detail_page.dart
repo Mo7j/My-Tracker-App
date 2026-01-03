@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:lottie/lottie.dart';
+import 'package:flutter/gestures.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
@@ -24,6 +26,8 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   late Goal _current;
   bool _changed = false;
   List<Task> _tasks = const [];
+  bool _backSwiping = false;
+  double _dragOffset = 0;
 
   @override
   void initState() {
@@ -39,56 +43,83 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         Navigator.pop(context, _changed ? true : null);
         return false;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: 16,
-          actionsIconTheme: const IconThemeData(size: 22),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 12),
-          toolbarHeight: 72,
-          leading: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 14),
-            child: InkWell(
-              onTap: () => Navigator.pop(context, _changed ? true : null),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3A7AFE),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragEnd: (details) {
+          if (_backSwiping) return;
+          if (details.primaryVelocity != null && details.primaryVelocity! > 400) {
+            Navigator.pop(context, _changed ? true : null);
+          } else {
+            setState(() => _dragOffset = 0);
+          }
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_backSwiping) return;
+          _dragOffset = (_dragOffset + details.delta.dx).clamp(0, 120).toDouble();
+          if (_dragOffset > 90) {
+            _backSwiping = true;
+            Navigator.pop(context, _changed ? true : null);
+            return;
+          }
+          setState(() {});
+        },
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          offset: Offset(_dragOffset / 600, 0),
+          child: Scaffold(
+            appBar: AppBar(
+              titleSpacing: 16,
+              actionsIconTheme: const IconThemeData(size: 22),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 12),
+              toolbarHeight: 72,
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 14),
+                child: InkWell(
+                  onTap: () => Navigator.pop(context, _changed ? true : null),
                   borderRadius: BorderRadius.circular(12),
-                ),
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                child: const Icon(Icons.arrow_back_ios_new,
-                    size: 26, color: Colors.white),
-              ),
-            ),
-          ),
-          title: const Text('Tasks'),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-              child: InkWell(
-                onTap: () => _deleteGoal(goal),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: Lottie.asset(
-                    'assets/lottie/Delete.json',
-                    height: 40,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3A7AFE),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     width: 40,
-                    repeat: true,
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: _PulsedLottie(
+                      asset: 'assets/lottie/Back.json',
+                      size: 40,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
+              title: const Text('Tasks'),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                  child: InkWell(
+                    onTap: () => _deleteGoal(goal),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      child: Lottie.asset(
+                        'assets/lottie/Delete.json',
+                        height: 40,
+                        width: 40,
+                        repeat: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        body: StreamBuilder<List<Task>>(
+            body: StreamBuilder<List<Task>>(
           stream: goal.id != null
               ? widget.firestore.streamGoalTasks(goal.id!)
               : const Stream.empty(),
@@ -226,9 +257,15 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _showAddTask,
-          child: const Icon(Icons.add, size: 30),
+          child: _PulsedLottie(
+            asset: 'assets/lottie/Plus.json',
+            size: 40,
+            color: Colors.white,
+          ),
         ),
       ),
+      ),
+    ),
     );
   }
 
@@ -628,6 +665,75 @@ class _EditGoalSheetState extends State<_EditGoalSheet> {
         createdAt: widget.goal.createdAt,
       ),
     );
+  }
+}
+
+class _PulsedLottie extends StatefulWidget {
+  const _PulsedLottie({
+    required this.asset,
+    this.size = 40,
+    this.color,
+  });
+
+  final String asset;
+  final double size;
+  final Color? color;
+
+  @override
+  State<_PulsedLottie> createState() => _PulsedLottieState();
+}
+
+class _PulsedLottieState extends State<_PulsedLottie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  Duration _duration = Duration.zero;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this);
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _timer?.cancel();
+        _timer = Timer(const Duration(seconds: 2), _play);
+      }
+    });
+  }
+
+  void _play() {
+    if (_duration == Duration.zero) return;
+    _ctrl.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Lottie.asset(
+      widget.asset,
+      controller: _ctrl,
+      repeat: false,
+      animate: false,
+      onLoaded: (comp) {
+        _duration = comp.duration;
+        _ctrl.duration = comp.duration;
+        _play();
+      },
+      height: widget.size,
+      width: widget.size,
+    );
+    return widget.color != null
+        ? ColorFiltered(
+            colorFilter: ColorFilter.mode(widget.color!, BlendMode.srcIn),
+            child: child,
+          )
+        : child;
   }
 }
 

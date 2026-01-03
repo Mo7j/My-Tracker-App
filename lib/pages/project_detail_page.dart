@@ -1,6 +1,8 @@
-﻿import 'dart:math' as math;
+﻿import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/gestures.dart';
 import 'package:lottie/lottie.dart';
 
 import '../models.dart';
@@ -31,6 +33,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
   Duration _lastElapsed = Duration.zero;
   bool _changed = false;
   List<Task> _tasks = const [];
+  bool _backSwiping = false;
+  double _dragOffset = 0;
 
   @override
   void initState() {
@@ -62,119 +66,146 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
         Navigator.pop(context, _changed ? true : null);
         return false;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: 16,
-          actionsIconTheme: const IconThemeData(size: 22),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 12),
-          toolbarHeight: 72,
-          leading: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 14),
-            child: InkWell(
-              onTap: () => Navigator.pop(context, _changed ? true : null),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3A7AFE),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragEnd: (details) {
+          if (_backSwiping) return;
+          if (details.primaryVelocity != null && details.primaryVelocity! > 400) {
+            Navigator.pop(context, _changed ? true : null);
+          } else {
+            setState(() => _dragOffset = 0);
+          }
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_backSwiping) return;
+          _dragOffset = (_dragOffset + details.delta.dx).clamp(0, 120).toDouble();
+          if (_dragOffset > 90) {
+            _backSwiping = true;
+            Navigator.pop(context, _changed ? true : null);
+            return;
+          }
+          setState(() {});
+        },
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          offset: Offset(_dragOffset / 600, 0),
+          child: Scaffold(
+            appBar: AppBar(
+              titleSpacing: 16,
+              actionsIconTheme: const IconThemeData(size: 22),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 12),
+              toolbarHeight: 72,
+            leading: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 14),
+                child: InkWell(
+                  onTap: () => Navigator.pop(context, _changed ? true : null),
                   borderRadius: BorderRadius.circular(12),
-                ),
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                child: const Icon(Icons.arrow_back_ios_new,
-                    size: 26, color: Colors.white),
-              ),
-            ),
-          ),
-          title: const Text('Tasks'),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-              child: InkWell(
-                onTap: () => _deleteProject(project),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: Lottie.asset(
-                    'assets/lottie/Delete.json',
-                    height: 40,
-                    width: 40,
-                    repeat: true,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        body: StreamBuilder<List<Task>>(
-          stream: project.id != null
-              ? widget.firestore.streamProjectTasks(project.id!)
-              : const Stream.empty(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              _tasks = snapshot.data!;
-            }
-            final tasks = _tasks;
-            final done = tasks.where((t) => t.isDone).length;
-            final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                GestureDetector(
-                  onTap: () => _editProject(project),
-                  child: _WavyHeaderBar(
-                    progress: progress,
-                    color: project.color,
-                    title: project.name,
-                    subtitle: project.description,
-                    phase: _phase,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const SizedBox(height: 8),
-                if (tasks.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
-                      'No tasks yet',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withOpacity(0.7)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3A7AFE),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )
-                else
-                  ...tasks.map((task) {
-                    DismissDirection? swipeDir;
-                    return StatefulBuilder(
-                      builder: (ctx, setInner) {
-                        BorderRadius radius;
-                        if (swipeDir == DismissDirection.startToEnd) {
-                          radius = const BorderRadius.only(
-                            topLeft: Radius.circular(0),
-                            bottomLeft: Radius.circular(0),
-                            topRight: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          );
-                        } else if (swipeDir == DismissDirection.endToStart) {
-                          radius = const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            bottomLeft: Radius.circular(12),
-                            topRight: Radius.circular(0),
-                            bottomRight: Radius.circular(0),
-                          );
-                        } else {
-                          radius = BorderRadius.circular(12);
-                        }
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: _PulsedLottie(
+                      asset: 'assets/lottie/Back.json',
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              title: const Text('Tasks'),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                  child: InkWell(
+                    onTap: () => _deleteProject(project),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      child: Lottie.asset(
+                        'assets/lottie/Delete.json',
+                        height: 40,
+                        width: 40,
+                        repeat: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            body: StreamBuilder<List<Task>>(
+            stream: project.id != null
+                ? widget.firestore.streamProjectTasks(project.id!)
+                : const Stream.empty(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                _tasks = snapshot.data!;
+              }
+              final tasks = _tasks;
+              final done = tasks.where((t) => t.isDone).length;
+              final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  GestureDetector(
+                    onTap: () => _editProject(project),
+                    child: _WavyHeaderBar(
+                      progress: progress,
+                      color: project.color,
+                      title: project.name,
+                      subtitle: project.description,
+                      phase: _phase,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const SizedBox(height: 8),
+                  if (tasks.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        'No tasks yet',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7)),
+                      ),
+                    )
+                  else
+                    ...tasks.map((task) {
+                      DismissDirection? swipeDir;
+                      return StatefulBuilder(
+                        builder: (ctx, setInner) {
+                          BorderRadius radius;
+                          if (swipeDir == DismissDirection.startToEnd) {
+                            radius = const BorderRadius.only(
+                              topLeft: Radius.circular(0),
+                              bottomLeft: Radius.circular(0),
+                              topRight: Radius.circular(12),
+                              bottomRight: Radius.circular(12),
+                            );
+                          } else if (swipeDir == DismissDirection.endToStart) {
+                            radius = const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              bottomLeft: Radius.circular(12),
+                              topRight: Radius.circular(0),
+                              bottomRight: Radius.circular(0),
+                            );
+                          } else {
+                            radius = BorderRadius.circular(12);
+                          }
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Dismissible(
                               key: ValueKey(task.id ?? task.title),
                               background: _SwipeBackground(
@@ -183,84 +214,91 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
                                 alignment: Alignment.centerLeft,
                               ),
                               secondaryBackground: _SwipeBackground(
-                              color: Colors.blueAccent,
-                              icon: Icons.edit,
-                              alignment: Alignment.centerRight,
-                            ),
-                            onUpdate: (details) {
-                              final dir = details.direction ==
-                                      DismissDirection.none
-                                  ? null
-                                  : details.direction;
-                              if (dir != swipeDir) setInner(() => swipeDir = dir);
-                            },
-                            confirmDismiss: (direction) async {
-                              if (direction == DismissDirection.startToEnd) {
-                                if (task.id != null && project.id != null) {
-                                  await widget.firestore.deleteProjectTask(
-                                      project.id!, task.id!);
-                                  _changed = true;
-                                }
-                                return true;
-                              } else if (direction ==
-                                  DismissDirection.endToStart) {
-                                await _editProjectTask(project.id!, task);
-                                return false;
-                              }
-                              return false;
-                            },
-                            child: Card(
-                              color: Theme.of(context).cardColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: radius,
+                                color: Colors.blueAccent,
+                                icon: Icons.edit,
+                                alignment: Alignment.centerRight,
                               ),
-                              margin: EdgeInsets.zero,
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                leading: Icon(
-                                  task.isDone
-                                      ? Icons.check_circle
-                                      : Icons.radio_button_unchecked,
-                                  color: task.isDone
-                                      ? const Color(0xFF61E294)
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withOpacity(0.6),
+                              onUpdate: (details) {
+                                final dir = details.direction ==
+                                        DismissDirection.none
+                                    ? null
+                                    : details.direction;
+                                if (dir != swipeDir) setInner(() => swipeDir = dir);
+                              },
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.startToEnd) {
+                                  if (task.id != null && project.id != null) {
+                                    await widget.firestore.deleteProjectTask(
+                                        project.id!, task.id!);
+                                    _changed = true;
+                                  }
+                                  return true;
+                                } else if (direction ==
+                                    DismissDirection.endToStart) {
+                                  await _editProjectTask(project.id!, task);
+                                  return false;
+                                }
+                                return false;
+                              },
+                              child: Card(
+                                color: Theme.of(context).cardColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: radius,
                                 ),
-                                title: Text(task.title,
+                                margin: EdgeInsets.zero,
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  leading: Icon(
+                                    task.isDone
+                                        ? Icons.check_circle
+                                        : Icons.radio_button_unchecked,
+                                    color: task.isDone
+                                        ? const Color(0xFF61E294)
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withOpacity(0.6),
+                                  ),
+                                  title: Text(
+                                    task.title,
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  subtitle: Text(
+                                    task.subtitle,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleMedium),
-                                subtitle: Text(
-                                  task.subtitle,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
+                                        .bodyMedium
+                                        ?.copyWith(
                                           color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withOpacity(0.7)),
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.7),
+                                        ),
+                                  ),
+                                  onTap: () => _toggleTaskDone(task),
                                 ),
-                                onTap: () => _toggleTaskDone(task),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  }),
-              ],
-            );
-          },
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _showAddTask,
-          child: const Icon(Icons.add, size: 30),
+                          );
+                        },
+                      );
+                    }),
+                ],
+              );
+            },
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showAddTask,
+            child: _PulsedLottie(
+              asset: 'assets/lottie/Plus.json',
+              size: 50,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
+    ),
     );
   }
 
@@ -639,6 +677,75 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
         weeklyBurndown: widget.project.weeklyBurndown,
       ),
     );
+  }
+}
+
+class _PulsedLottie extends StatefulWidget {
+  const _PulsedLottie({
+    required this.asset,
+    this.size = 40,
+    this.color,
+  });
+
+  final String asset;
+  final double size;
+  final Color? color;
+
+  @override
+  State<_PulsedLottie> createState() => _PulsedLottieState();
+}
+
+class _PulsedLottieState extends State<_PulsedLottie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  Duration _duration = Duration.zero;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this);
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _timer?.cancel();
+        _timer = Timer(const Duration(seconds: 2), _play);
+      }
+    });
+  }
+
+  void _play() {
+    if (_duration == Duration.zero) return;
+    _ctrl.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Lottie.asset(
+      widget.asset,
+      controller: _ctrl,
+      repeat: false,
+      animate: false,
+      onLoaded: (comp) {
+        _duration = comp.duration;
+        _ctrl.duration = comp.duration;
+        _play();
+      },
+      height: widget.size,
+      width: widget.size,
+    );
+    return widget.color != null
+        ? ColorFiltered(
+            colorFilter: ColorFilter.mode(widget.color!, BlendMode.srcIn),
+            child: child,
+          )
+        : child;
   }
 }
 

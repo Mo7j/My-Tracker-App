@@ -1182,8 +1182,8 @@ class _TaskCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           SizedBox(
-                            width: isCompact ? 45 : 75,
-                            height: isCompact ? 45 : 75,
+                            width: isCompact ? 25 : 55,
+                            height: isCompact ? 25 : 55,
                             child: Transform.translate(
                               offset: const Offset(0, 10),
                               child: Lottie.asset(

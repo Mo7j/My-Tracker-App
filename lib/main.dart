@@ -1156,11 +1156,14 @@ class _SegmentedNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final addBlue = theme.colorScheme.primary;
+    final selectedBg = Colors.blueAccent;
+    final selectedIcon = Colors.white;
+    final idleIcon =
+        theme.colorScheme.onSurface.withOpacity(theme.brightness == Brightness.dark ? 0.5 : 0.6);
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      height: 95 + bottomInset,
-      padding: EdgeInsets.fromLTRB(10, 0, 10, 10 + bottomInset),
+      height: 80 + bottomInset,
+      padding: EdgeInsets.fromLTRB(10, 0, 10, 0 + bottomInset),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
@@ -1171,25 +1174,28 @@ class _SegmentedNavBar extends StatelessWidget {
       child: Row(
         children: [
           _SegmentItem(
-            asset: 'assets/lottie/Task.json',
-            selected: index == 0,
-            onTap: () => onChanged(0),
-            primary: addBlue,
-            idleValue: 0.7
-          ),
-          _SegmentItem(
             asset: 'assets/lottie/Habit.json',
             selected: index == 1,
             onTap: () => onChanged(1),
-            primary: addBlue,
-            idleValue: 0.0,
+            primary: selectedIcon,
+            idleColor: idleIcon,
+            bgColor: index == 1 ? selectedBg : Colors.transparent
+          ),
+          _SegmentItem(
+            asset: 'assets/lottie/Task.json',
+            selected: index == 0,
+            onTap: () => onChanged(0),
+            primary: selectedIcon,
+            idleColor: idleIcon,
+            bgColor: index == 0 ? selectedBg : Colors.transparent
           ),
           _SegmentItem(
             asset: 'assets/lottie/Goal.json',
             selected: index == 2,
             onTap: () => onChanged(2),
-            primary: addBlue,
-            idleValue: 0.90,
+            primary: selectedIcon,
+            idleColor: idleIcon,
+            bgColor: index == 2 ? selectedBg : Colors.transparent
           ),
         ],
       ),
@@ -1203,16 +1209,16 @@ class _SegmentItem extends StatefulWidget {
     required this.selected,
     required this.onTap,
     required this.primary,
-    required this.idleValue,
+    required this.idleColor,
+    required this.bgColor,
   });
 
   final String asset;
   final bool selected;
   final VoidCallback onTap;
   final Color primary;
-
-  /// 0.0..1.0 where the icon rests when not selected
-  final double idleValue;
+  final Color idleColor;
+  final Color bgColor;
 
   @override
   State<_SegmentItem> createState() => _SegmentItemState();
@@ -1235,13 +1241,9 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
       if (widget.selected) {
         _playSequence(run: _run);
       } else {
-        _ctrl.value = widget.idleValue;
+        _ctrl.value = 1.0;
       }
       return;
-    }
-
-    if (oldWidget.idleValue != widget.idleValue && !widget.selected) {
-      _ctrl.value = widget.idleValue;
     }
   }
 
@@ -1249,14 +1251,20 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this);
-    _ctrl.value = widget.selected ? 0.0 : widget.idleValue; // ✅ better default
+    _ctrl.value = 1.0;
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
 
   Future<void> _playSequence({required int run}) async {
     if (_duration == Duration.zero) {
       // Not loaded yet: just jump to start frame; onLoaded will replay if selected.
-      _ctrl.value = 0.0;
+      _ctrl.value = 1.0;
       return;
     }
 
@@ -1266,17 +1274,7 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
     await _ctrl.animateTo(
       1.0,
       duration: _duration,
-      curve: Curves.easeOutCubic,
-    );
-
-    // ✅ cancelled or no longer selected? stop here
-    if (!mounted || run != _run || !widget.selected) return;
-
-    // return to idle
-    await _ctrl.animateTo(
-      widget.idleValue,
-      duration: Duration(milliseconds: (_duration.inMilliseconds * 0.45).round()),
-      curve: Curves.easeOutCubic,
+      curve: Curves.linear,
     );
 
     if (!mounted || run != _run) return;
@@ -1287,8 +1285,8 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(14);
-    final scale = widget.selected ? 1.0 : 0.70;
-    final opacity = widget.selected ? 1.0 : 0.45; 
+    final scale = widget.selected ? 0.9 : 0.85;
+    final opacity = widget.selected ? 1.0 : 0.45;
     return Expanded(
       child: GestureDetector(
         onTap: widget.onTap,
@@ -1298,7 +1296,7 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
           height: double.infinity,
           margin: EdgeInsets.zero,
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: widget.bgColor,
             borderRadius: radius,
           ),
           child: Center(
@@ -1327,13 +1325,21 @@ class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderSta
                         _ctrl.duration = _duration;
 
                         // keep visual state consistent
-                        _ctrl.value = widget.selected ? 0.0 : widget.idleValue;
+                        _ctrl.value = widget.selected ? 0.0 : 1.0;
 
                         if (widget.selected) {
                           _run++; // ✅ invalidate anything pending
                           _playSequence(run: _run);
                         }
                       },
+                      delegates: LottieDelegates(
+                        values: [
+                          ValueDelegate.color(
+                            const ['**'],
+                            value: widget.selected ? widget.primary : widget.idleColor,
+                          ),
+                        ],
+                      ),
 
                     ),
 
