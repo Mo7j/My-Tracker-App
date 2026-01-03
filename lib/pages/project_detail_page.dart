@@ -1,6 +1,7 @@
 ﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:lottie/lottie.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
@@ -90,34 +91,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               child: InkWell(
-                onTap: () => _editProject(project),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6B7280),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.edit, size: 20, color: Colors.white),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-              child: InkWell(
                 onTap: () => _deleteProject(project),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   width: 40,
                   height: 40,
                   alignment: Alignment.center,
-                  child: const Icon(Icons.delete, size: 20, color: Colors.white),
+                  child: Lottie.asset(
+                    'assets/lottie/Delete.json',
+                    height: 40,
+                    width: 40,
+                    repeat: true,
+                  ),
                 ),
               ),
             ),
@@ -137,12 +125,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _WavyHeaderBar(
-                  progress: progress,
-                  color: project.color,
-                  title: project.name,
-                  subtitle: project.description,
-                  phase: _phase,
+                GestureDetector(
+                  onTap: () => _editProject(project),
+                  child: _WavyHeaderBar(
+                    progress: progress,
+                    color: project.color,
+                    title: project.name,
+                    subtitle: project.description,
+                    phase: _phase,
+                  ),
                 ),
                 const SizedBox(height: 18),
                 const SizedBox(height: 8),
@@ -184,14 +175,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Dismissible(
-                            key: ValueKey(task.id ?? task.title),
-                            background: _SwipeBackground(
-                              color: Colors.redAccent,
-                              icon: Icons.delete,
-                              alignment: Alignment.centerLeft,
-                            ),
-                            secondaryBackground: _SwipeBackground(
+                            child: Dismissible(
+                              key: ValueKey(task.id ?? task.title),
+                              background: _SwipeBackground(
+                                color: Colors.redAccent,
+                                lottieAsset: 'assets/lottie/Delete.json',
+                                alignment: Alignment.centerLeft,
+                              ),
+                              secondaryBackground: _SwipeBackground(
                               color: Colors.blueAccent,
                               icon: Icons.edit,
                               alignment: Alignment.centerRight,
@@ -398,7 +389,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
       isDismissible: true,
       backgroundColor: Colors.transparent,
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.8,
+        heightFactor: 0.6,
         child: _EditProjectSheet(project: project),
       ),
     );
@@ -425,60 +416,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage>
 
   Future<void> _deleteProject(Project project) async {
     if (project.id == null) return;
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final handleColor =
-            Theme.of(ctx).brightness == Brightness.dark ? Colors.white24 : Colors.black26;
 
-        return FractionallySizedBox(
-          heightFactor: 0.8,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: handleColor,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.redAccent),
-                  title: const Text('Delete project', style: TextStyle(color: Colors.redAccent)),
-                  subtitle: Text('Remove "${project.name}" and its tasks?'),
-                  onTap: () => Navigator.pop(ctx, true),
-                ),
-                ListTile(
-                  leading: Icon(Icons.close,
-                      color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7)),
-                  title:
-                      Text('Cancel', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
-                  onTap: () => Navigator.pop(ctx, false),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      await widget.firestore.deleteProject(project.id!);
-      _changed = true;
-      if (mounted) Navigator.pop(context, true);
-    }
+    await widget.firestore.deleteProject(project.id!);
+    _changed = true;
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _editProjectTask(String projectId, Task task) async {
@@ -565,7 +506,18 @@ class _EditProjectSheet extends StatefulWidget {
 }
 
 class _EditProjectSheetState extends State<_EditProjectSheet> {
-  
+  static const _colorOptions = <Color>[
+    Color(0xFFEFDF48),
+    Color(0xFFE87F21),
+    Color(0xFFD03E40),
+    Color(0xFFCD327D),
+    Color(0xFF6327E1),
+    Color(0xFF2263E3),
+    Color(0xFF27B4E0),
+    Color(0xFF27E086),
+    Color(0xFF129520),
+    Color(0xFF646464),
+  ];
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   late Color _selected;
@@ -590,8 +542,8 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.8,
-      minChildSize: 0.8,
+      initialChildSize: 0.7,
+      minChildSize: 0.7,
       maxChildSize: 0.9,
       builder: (_, controller) {
         return Container(
@@ -644,7 +596,7 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
               ),
               const SizedBox(height: 8),
               _ColorPicker(
-                colors: kColorOptions,
+                colors: _colorOptions,
                 selected: _selected,
                 backgroundColor: Theme.of(context).dialogBackgroundColor,
                 onPick: (c) => setState(() => _selected = c),
@@ -653,14 +605,17 @@ class _EditProjectSheetState extends State<_EditProjectSheet> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _submit,
-                child: const Text('Save changes'),
+                child: const Text(
+                  'Save changes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -732,12 +687,14 @@ class _ColorPicker extends StatelessWidget {
 class _SwipeBackground extends StatelessWidget {
   const _SwipeBackground({
     required this.color,
-    required this.icon,
+    this.icon,
+    this.lottieAsset,
     required this.alignment,
   });
 
   final Color color;
-  final IconData icon;
+  final IconData? icon;
+  final String? lottieAsset;
   final Alignment alignment;
 
   @override
@@ -755,7 +712,14 @@ class _SwipeBackground extends StatelessWidget {
         alignment: alignment,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         color: color.withOpacity(0.2),
-        child: Icon(icon, color: color, size: 24),
+        child: lottieAsset != null
+            ? Lottie.asset(
+                lottieAsset!,
+                height: 42,
+                width: 42,
+                repeat: true,
+              )
+            : Icon(icon, color: color, size: 24),
       ),
     );
   }
@@ -779,7 +743,7 @@ class _WavyHeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = progress.clamp(0.0, 1.0);
-    return SizedBox(
+                    return SizedBox(
       height: 72,
       child: LayoutBuilder(
         builder: (context, constraints) {

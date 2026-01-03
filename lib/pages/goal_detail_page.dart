@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 import '../models.dart';
 import '../services/firestore_service.dart';
@@ -67,34 +68,21 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               child: InkWell(
-                onTap: () => _editGoal(goal),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6B7280),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.edit, size: 20, color: Colors.white),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-              child: InkWell(
                 onTap: () => _deleteGoal(goal),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   width: 40,
                   height: 40,
                   alignment: Alignment.center,
-                  child: const Icon(Icons.delete, size: 20, color: Colors.white),
+                  child: Lottie.asset(
+                    'assets/lottie/Delete.json',
+                    height: 40,
+                    width: 40,
+                    repeat: true,
+                  ),
                 ),
               ),
             ),
@@ -117,13 +105,16 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
               padding: const EdgeInsets.all(16),
               children: [
                 const SizedBox(height: 12),
-                Center(
-                  child: GoalProgressRing(
-                    progress: progress,
-                    color: goal.color,
-                    size: 190,
-                    label: goal.name,
-                    remainingText: remainingText,
+                GestureDetector(
+                  onTap: () => _editGoal(goal),
+                  child: Center(
+                    child: GoalProgressRing(
+                      progress: progress,
+                      color: goal.color,
+                      size: 190,
+                      label: goal.name,
+                      remainingText: remainingText,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -165,14 +156,14 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Dismissible(
-                            key: ValueKey(task.id ?? task.title),
-                            background: _SwipeBackground(
-                              color: Colors.redAccent,
-                              icon: Icons.delete,
-                              alignment: Alignment.centerLeft,
-                            ),
-                            secondaryBackground: _SwipeBackground(
+                            child: Dismissible(
+                              key: ValueKey(task.id ?? task.title),
+                              background: _SwipeBackground(
+                                color: Colors.redAccent,
+                                lottieAsset: 'assets/lottie/Delete.json',
+                                alignment: Alignment.centerLeft,
+                              ),
+                              secondaryBackground: _SwipeBackground(
                               color: Colors.blueAccent,
                               icon: Icons.edit,
                               alignment: Alignment.centerRight,
@@ -373,7 +364,7 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
       isDismissible: true,
       backgroundColor: Colors.transparent,
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.8,
+        heightFactor: 0.5,
         child: _EditGoalSheet(goal: goal),
       ),
     );
@@ -401,44 +392,9 @@ class _GoalDetailPageState extends State<GoalDetailPage> {
   Future<void> _deleteGoal(Goal goal) async {
     if (goal.id == null) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).dialogBackgroundColor,
-        insetPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        title: const Text('Delete goal?'),
-        content: Text('Remove "${goal.name}" and its tasks?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.onSurface.withOpacity(0.7),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            ),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await widget.firestore.deleteGoal(goal.id!);
-      _changed = true;
-      if (mounted) Navigator.pop(context, true);
-    }
+    await widget.firestore.deleteGoal(goal.id!);
+    _changed = true;
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _editGoalTask(String goalId, Task task) async {
@@ -618,18 +574,21 @@ class _EditGoalSheetState extends State<_EditGoalSheet> {
                 backgroundColor: Theme.of(context).dialogBackgroundColor,
                 onPick: (c) => setState(() => _selected = c),
               ),
-              const SizedBox(height: 20),
+               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3A7AFE),
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _submit,
-                child: const Text('Save changes'),
+                child: const Text(
+                  'Save changes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -717,12 +676,14 @@ class _ColorPicker extends StatelessWidget {
 class _SwipeBackground extends StatelessWidget {
   const _SwipeBackground({
     required this.color,
-    required this.icon,
+    this.icon,
+    this.lottieAsset,
     required this.alignment,
   });
 
   final Color color;
-  final IconData icon;
+  final IconData? icon;
+  final String? lottieAsset;
   final Alignment alignment;
 
   @override
@@ -740,7 +701,14 @@ class _SwipeBackground extends StatelessWidget {
         alignment: alignment,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         color: color.withOpacity(0.2),
-        child: Icon(icon, color: color, size: 24),
+        child: lottieAsset != null
+            ? Lottie.asset(
+                lottieAsset!,
+                height: 42,
+                width: 42,
+                repeat: true,
+              )
+            : Icon(icon, color: color, size: 24),
       ),
     );
   }

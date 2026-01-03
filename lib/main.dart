@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'package:lottie/lottie.dart';
 import 'firebase_options.dart';
 import 'models.dart';
 import 'pages/habits_page.dart';
@@ -130,7 +131,12 @@ class _HomeShellState extends State<HomeShell> {
         ];
 
         return Scaffold(
-          body: SafeArea(child: pages[_index]),
+          body: SafeArea(
+            child: IndexedStack(
+              index: _index,
+              children: pages,
+            ),
+          ),
           floatingActionButton: _index == 0
               ? FloatingActionButton(
                   onPressed: () => _handleAddTask(context),
@@ -1153,8 +1159,8 @@ class _SegmentedNavBar extends StatelessWidget {
     final addBlue = theme.colorScheme.primary;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      height: 75 + bottomInset,
-      padding: EdgeInsets.fromLTRB(10, 8, 10, 15 + bottomInset),
+      height: 95 + bottomInset,
+      padding: EdgeInsets.fromLTRB(10, 0, 10, 10 + bottomInset),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark
@@ -1165,25 +1171,25 @@ class _SegmentedNavBar extends StatelessWidget {
       child: Row(
         children: [
           _SegmentItem(
-            icon: Icons.timeline,
-            label: '',
+            asset: 'assets/lottie/Task.json',
             selected: index == 0,
             onTap: () => onChanged(0),
             primary: addBlue,
+            idleValue: 0.7
           ),
           _SegmentItem(
-            icon: Icons.local_fire_department_rounded,
-            label: '🔥',
+            asset: 'assets/lottie/Habit.json',
             selected: index == 1,
             onTap: () => onChanged(1),
             primary: addBlue,
+            idleValue: 0.0,
           ),
           _SegmentItem(
-            icon: Icons.track_changes,
-            label: '🎯',
+            asset: 'assets/lottie/Goal.json',
             selected: index == 2,
             onTap: () => onChanged(2),
             primary: addBlue,
+            idleValue: 0.90,
           ),
         ],
       ),
@@ -1191,27 +1197,101 @@ class _SegmentedNavBar extends StatelessWidget {
   }
 }
 
-class _SegmentItem extends StatelessWidget {
+class _SegmentItem extends StatefulWidget {
   const _SegmentItem({
-    required this.icon,
-    required this.label,
+    required this.asset,
     required this.selected,
     required this.onTap,
     required this.primary,
+    required this.idleValue,
   });
 
-  final IconData icon;
-  final String label;
+  final String asset;
   final bool selected;
   final VoidCallback onTap;
   final Color primary;
 
+  /// 0.0..1.0 where the icon rests when not selected
+  final double idleValue;
+
+  @override
+  State<_SegmentItem> createState() => _SegmentItemState();
+}
+
+class _SegmentItemState extends State<_SegmentItem> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  Duration _duration = Duration.zero;
+
+  int _run = 0; // ✅ token to invalidate older async runs
+
+  @override
+  void didUpdateWidget(covariant _SegmentItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.selected != widget.selected) {
+      _run++;               // ✅ cancel any in-flight sequence
+      _ctrl.stop();         // ✅ stop current animation immediately
+
+      if (widget.selected) {
+        _playSequence(run: _run);
+      } else {
+        _ctrl.value = widget.idleValue;
+      }
+      return;
+    }
+
+    if (oldWidget.idleValue != widget.idleValue && !widget.selected) {
+      _ctrl.value = widget.idleValue;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this);
+    _ctrl.value = widget.selected ? 0.0 : widget.idleValue; // ✅ better default
+  }
+
+
+  Future<void> _playSequence({required int run}) async {
+    if (_duration == Duration.zero) {
+      // Not loaded yet: just jump to start frame; onLoaded will replay if selected.
+      _ctrl.value = 0.0;
+      return;
+    }
+
+    _ctrl.value = 0.0;
+
+    // play to end
+    await _ctrl.animateTo(
+      1.0,
+      duration: _duration,
+      curve: Curves.easeOutCubic,
+    );
+
+    // ✅ cancelled or no longer selected? stop here
+    if (!mounted || run != _run || !widget.selected) return;
+
+    // return to idle
+    await _ctrl.animateTo(
+      widget.idleValue,
+      duration: Duration(milliseconds: (_duration.inMilliseconds * 0.45).round()),
+      curve: Curves.easeOutCubic,
+    );
+
+    if (!mounted || run != _run) return;
+    _ctrl.stop();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(14);
+    final scale = widget.selected ? 1.0 : 0.70;
+    final opacity = widget.selected ? 1.0 : 0.45; 
     return Expanded(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
@@ -1225,13 +1305,41 @@ class _SegmentItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: selected ? 34 : 26,
-                  color: selected
-                      ? primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
+                SizedBox(
+                  height: 65,
+                  width: 65,
+                  child: AnimatedOpacity(
+                  opacity: opacity,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: AnimatedScale(
+                    scale: scale,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    child: Lottie.asset(
+                      widget.asset,
+                      controller: _ctrl,
+                      repeat: false,
+                      animate: false,
+                      fit: BoxFit.contain,
+                      onLoaded: (composition) {
+                        _duration = composition.duration;
+                        _ctrl.duration = _duration;
+
+                        // keep visual state consistent
+                        _ctrl.value = widget.selected ? 0.0 : widget.idleValue;
+
+                        if (widget.selected) {
+                          _run++; // ✅ invalidate anything pending
+                          _playSequence(run: _run);
+                        }
+                      },
+
+                    ),
+
+                  ),
                 ),
+                )
               ],
             ),
           ),

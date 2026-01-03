@@ -125,14 +125,17 @@ class ProjectGoalSheetState extends State<ProjectGoalSheet> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF3A7AFE),
-              foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
             onPressed: _submit,
-            child: Text(_type == 'project' ? 'Add project' : 'Add goal'),
+            child: Text(
+              _type == 'project' ? 'Add project' : 'Add goal',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
